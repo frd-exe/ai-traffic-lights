@@ -17,4 +17,3 @@ export default function SearchBox({ onResult, onError }: { onResult: (result: Ge
     {busy && <span className="spinner" aria-label="Searching" />}
   </form>{results !== null && <div className="search-results">{results.length ? results.map((r, i) => <button key={i} onClick={() => { onResult(r); setResults(null); }}>{r.display_name}</button>) : <p>No places found. Try another name.</p>}<button className="muted-button" onClick={() => setResults(null)}>Dismiss results</button></div>}</div>;
 }
-
