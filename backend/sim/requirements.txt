@@ -1,0 +1,2 @@
+# Install alongside backend/requirements.txt for headless simulation.
+numpy==2.3.3
