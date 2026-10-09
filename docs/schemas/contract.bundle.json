@@ -794,7 +794,7 @@
       "additionalProperties": false,
       "properties": {
         "contract_version": {
-          "default": "0.3.0",
+          "default": "0.3.1",
           "title": "Contract Version",
           "type": "string"
         },
@@ -1695,7 +1695,7 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "AI traffic lights contract v0.3.0 (generated, do not edit)",
+  "description": "AI traffic lights contract v0.3.1 (generated, do not edit)",
   "properties": {
     "AiResetResponse": {
       "$ref": "#/$defs/AiResetResponse"

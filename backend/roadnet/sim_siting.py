@@ -107,11 +107,22 @@ def run_siting(
                                 f"{2 * seconds / 60:.0f} sim-min per run pair, {workers} worker(s)")
 
 
+PRESELECT_COUNT = 3
+
+
+def siting_top(result: SitingResult, n: int = PRESELECT_COUNT) -> list[str]:
+    """Top-n junctions by simulation: the greedily added signals first (in order), then the
+    remaining candidates by sim_gain_s (desc, ties by candidate rank)."""
+    rest = sorted((c for c in result.candidates if c not in result.order),
+                  key=lambda c: (-result.gains.get(c, float("-inf")), result.candidates.index(c)))
+    return (list(result.order) + rest)[:n]
+
+
 def apply_to_area(area: AreaResponse, result: SitingResult) -> AreaResponse:
-    """sim_gain_s filled in; recommended_ids = greedy order (if any signal was worth adding).
-    The structural ranking order of `intersections` is kept."""
+    """sim_gain_s filled in; recommended_ids = the simulation top 3 (siting_top), which the UI
+    preselects and the experiments signalise. The structural order of `intersections` is kept."""
     ixs = [i.model_copy(update={"sim_gain_s": result.gains.get(i.id, i.sim_gain_s)}) for i in area.intersections]
-    rec = list(result.order) or list(area.recommended_ids)
+    rec = siting_top(result) or list(area.recommended_ids)
     return area.model_copy(update={"intersections": ixs, "recommended_ids": rec})
 
 

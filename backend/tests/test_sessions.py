@@ -169,8 +169,24 @@ def test_run_siting_on_grid_in_process(tmp_path):
     assert res.baseline_wait_s is not None and res.runtime_s is not None
     applied = sim_siting.apply_to_area(area, res)
     assert {i.id: i.sim_gain_s for i in applied.intersections if i.id in res.gains} == res.gains
-    if res.order:
-        assert applied.recommended_ids == res.order
+    assert len(applied.recommended_ids) == 3 and applied.recommended_ids[:len(res.order)] == res.order
+
+
+def test_siting_top_three_order():
+    from backend.contract.models import SitingResult as SR
+    res = SR(area_id="a", seed=1, status="done", demand_level="rush", candidates=["a", "b", "c", "d", "e"],
+             order=["c"], gains={"c": 10.0, "a": -2.0, "b": 1.5, "d": 3.0, "e": 3.0})
+    assert sim_siting.siting_top(res) == ["c", "d", "e"]  # greedy pick, then by gain (ties: candidate rank)
+    res2 = res.model_copy(update={"order": []})
+    assert sim_siting.siting_top(res2) == ["c", "d", "e"]
+
+
+def test_demo_area_preselects_siting_top_three(tmp_path):
+    from backend.app import Settings as S, create_app
+    committed = sim_siting.SitingCache(sim_siting.DATA_DIR, sim_siting.DATA_DIR).get(GRID_AREA_ID, 42, "rush")
+    c = TestClient(create_app(S(state_dir=tmp_path / "st", sample_path=tmp_path / "none.json", env={})))
+    area = AreaResponse.model_validate(c.get("/api/demo-area").json())
+    assert area.recommended_ids == sim_siting.siting_top(committed) and len(area.recommended_ids) == 3
 
 
 def test_committed_demo_siting_is_served(app_client):

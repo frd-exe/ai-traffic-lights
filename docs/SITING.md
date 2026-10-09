@@ -48,7 +48,9 @@ junctions, so the spacing penalty puts it third.
    parallel (one process per run; signals run max-pressure) and adds the one that lowers `avg_wait_s` most.
 4. Stop at diminishing returns: best improvement < max(1 s, 3 % of the current wait).
 5. `sim_gain_s` = the candidate's marginal reduction of `avg_wait_s` when it was added (for candidates
-   never added: their marginal value in the last round, possibly ≤ 0). `recommended_ids` becomes the greedy order.
+   never added: their marginal value in the last round, possibly ≤ 0).
+6. `recommended_ids` = the **simulation top 3** (`siting_top`): the greedily added signals first, then the
+   remaining candidates by `sim_gain_s`. The UI preselects these 3 and the experiments signalise the same 3.
 
 Each run is 1 min warm-up + 3 simulated minutes, same seed and demand (rush by default) for every run, so
 differences come from the signals, not from demand noise. Results are cached per (area_id, seed, level);
@@ -56,9 +58,13 @@ the demo city is precomputed and committed (`backend/data/siting/area_grid_mock_
 `python scripts/precompute_siting.py`). Other areas get the structural ranking immediately and can
 start `POST /api/area/{area_id}/refine` (async).
 
-**Demo city result (seed 42, rush, 12 cores, 14.6 s):** baseline (all unsignalised) avg wait 73.0 s; adding
-the SE junction `i_4024a1db` lowers it to 62.2 s (−10.8 s); no second signal clears the 3 % bar (best +1.6 s),
-so the greedy stops at one signal. Single seed, 3-minute windows: treat as indicative.
+**Demo city result (seed 42, rush, 12 cores, 13.6 s):** baseline (all unsignalised) avg wait 32.1 s; adding
+`i_1c42c10c` (east junction of the primary street) lowers it to 28.1 s (−4.0 s); the next best,
+`i_27451942` (centre), would gain only 0.8 s, below the 3 % bar, so the greedy stops at one signal. Most other
+single signals make it slightly worse at this demand (the 5 s clearance per switch costs more than priority
+rules lose). Top 3 preselected: `i_1c42c10c`, `i_27451942`, `i_ac9b6377`. Single seed, 3-minute windows:
+treat as indicative. (An earlier run gave 73 s baseline because of an engine bug: unsignalised four-way
+standoffs under the right-hand rule never resolved; fixed, see backend/sim/README.md.)
 
 ## Known limitations
 

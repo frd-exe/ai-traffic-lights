@@ -300,6 +300,40 @@ def test_unsignalized_right_hand_rule():
     assert e._permission(cars[1], e._lanes())
 
 
+def test_unsignalized_four_way_standoff_is_broken_by_oldest_waiter():
+    """Four equal-class approaches, each with a car stopped at the line: under the right-hand rule
+    everyone yields to someone. Exactly one car (the longest-stopped) may go."""
+    def four_cars(e, prefix, speed, to_line):
+        i = next(i for i in e.intersections if i.node_id == "n11")
+        cars = []
+        for k, a in enumerate(sorted(i.approaches, key=lambda a: a.bearing)):
+            straight = next(o for o in a.out_edges if e._turn(a.in_edge, o) == "straight")
+            cars.append(Car(f"{prefix}{k}", (a.in_edge, straight), 0, 1, 1.5,
+                            x=e.edges[a.in_edge].length_m - to_line, speed=speed, stopped=10.0 + k))
+        e.cars = {c.id: c for c in cars}
+        return cars
+
+    e = engine(selected=False)
+    cars = four_cars(e, "c", 0.0, 1.8)  # IDM rests ~2 m before the line
+    assert [c.id for c in cars if e._permission(c, e._lanes())] == ["c3"]  # longest stopped
+    cars[3].speed, cars[3].x = 4.0, cars[3].x + 1.0  # the winner keeps right of way while it moves off
+    assert e._permission(cars[3], e._lanes())
+    # cars still moving toward the line follow the normal yield rule: no standoff override
+    e2 = engine(selected=False)
+    moving = four_cars(e2, "m", 3.0, 5.0)
+    assert [c.id for c in moving if e2._permission(c, e2._lanes())] == []
+
+
+def test_unsignalized_grid_never_locks_up():
+    """Regression: with no signals at all, low demand must flow (was bimodal: some seeds locked up)."""
+    for seed in (1, 2, 3):
+        e = engine(seed=seed, selected=False, demand=profile(level="low"))
+        run(e, 600)
+        m = e.metrics("fixed", "fixed")
+        assert m.avg_wait_s < 60, (seed, m.avg_wait_s)
+        assert sum(map(len, e.external.values())) < 10
+
+
 def test_reservations_serialize_conflicting_movements():
     """Movement-level conflicts: any two CONFLICTING crossings at a node are >= 2 s apart."""
     for selected in (True, False):  # signalised and fully unsignalised (priority + gap acceptance)

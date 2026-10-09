@@ -64,7 +64,17 @@ def test_client_parses_schema_output_and_never_leaks_key():
     body = json.loads(req.content)
     gc = body["generationConfig"]
     assert gc["responseMimeType"] == "application/json" and gc["responseSchema"]["type"] == "ARRAY"
-    assert gc["thinkingConfig"]["thinkingBudget"] == 0
+    assert gc["thinkingConfig"] == {"thinkingLevel": "low"}  # default model is Gemini 3.x
+
+
+def test_thinking_config_per_model_family():
+    c = client(lambda r: gemini_ok([]))
+    c.model = "gemini-2.5-flash"
+    assert c._thinking_config() == {"thinkingConfig": {"thinkingBudget": 0}}
+    c.model = "gemini-3.8-flash"
+    assert c._thinking_config() == {"thinkingConfig": {"thinkingLevel": "low"}}
+    c.thinking_level = None
+    assert c._thinking_config() == {}
 
 
 @pytest.mark.parametrize("status,payload,kind", [

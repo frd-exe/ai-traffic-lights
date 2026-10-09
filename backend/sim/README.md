@@ -53,7 +53,13 @@ for the next phase, ensuring a controller swap uses normal clearance.
 
 Unsignalized cars yield to higher road classes and to the right for equal
 classes. A minor car accepts a gap if all priority heads are >=3+its headway
-seconds away. Every crossing still checks movement reservations. Entire-network
+seconds away. Every crossing still checks movement reservations. Standoff breaker
+(all-way-stop rule): if a head car and every car it yields to are all stopped at their
+stop lines (e.g. four equal-class approaches under the right-hand rule, where everyone
+yields to someone), the head that has waited longest and can move goes, and keeps the
+right of way until it has crossed. Without it such junctions locked up permanently
+(the wait-for cycle detector only follows queues and spillback, not yielding).
+`standoffs_resolved` counts these events. Entire-network
 immobility for 60 s increments the contract counter and teleports the oldest;
 local wait-for cycles of cars stopped >120 s also increment it and teleport
 the oldest cycle member. Teleports are retained as ended trips in the metric

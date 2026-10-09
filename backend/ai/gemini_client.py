@@ -38,7 +38,10 @@ from backend.contract.models import Plan
 
 log = logging.getLogger("backend.ai")
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-DEFAULT_MODEL = "gemini-2.5-flash"
+# gemini-2.5-flash is no longer offered to new users (404, Oct 2026). Measured on the demo city:
+# gemini-3.5-flash-lite 2.5 s per call; gemini-3.8-flash ~14 s (over the 8 s timeout); 3.5-flash 503 (overloaded).
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_THINKING_LEVEL = "low"  # Gemini 3 models ("minimal" is rejected by 3.x flash)
 DEFAULT_DAILY_CAP = 500
 DEFAULT_RPM = 10
 TIMEOUT_S = 8.0
@@ -166,6 +169,7 @@ class GeminiClient:
         min_interval_s: float = GEMINI_MIN_INTERVAL_S,
         rpm: int = DEFAULT_RPM,
         thinking_budget: int | None = 0,
+        thinking_level: str | None = DEFAULT_THINKING_LEVEL,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Any] = asyncio.sleep,
     ):
@@ -174,6 +178,7 @@ class GeminiClient:
         ff = (fake_fail or "").strip().lower()
         self.fake_fail = None if ff in ("", "0", "off", "none") else FAKE_ALIASES.get(ff, ff)
         self.min_interval_s, self.rpm, self.thinking_budget = min_interval_s, rpm, thinking_budget
+        self.thinking_level = thinking_level
         self.clock, self.sleep = clock, sleep
         self._calls: deque[float] = deque()
         self._last_call: float | None = None
@@ -185,6 +190,7 @@ class GeminiClient:
         env = dict(os.environ if env is None else env)
         cap = int(env.get("GEMINI_DAILY_CAP") or DEFAULT_DAILY_CAP)
         budget = env.get("GEMINI_THINKING_BUDGET", "0")
+        level = env.get("GEMINI_THINKING_LEVEL", DEFAULT_THINKING_LEVEL)
         return cls(
             api_key=env.get("GEMINI_API_KEY"),
             usage=UsageCounter(state_dir / "usage.json", cap),
@@ -193,6 +199,7 @@ class GeminiClient:
             min_interval_s=float(env.get("GEMINI_MIN_INTERVAL_S") or GEMINI_MIN_INTERVAL_S),
             rpm=int(env.get("GEMINI_RPM") or DEFAULT_RPM),
             thinking_budget=None if budget.lower() in ("", "none") else int(budget),
+            thinking_level=None if level.lower() in ("", "none") else level,
             **kw,
         )
 
@@ -261,8 +268,7 @@ class GeminiClient:
                 "responseSchema": RESPONSE_SCHEMA,
                 "temperature": 0.2,
                 "maxOutputTokens": 2048,
-                **({"thinkingConfig": {"thinkingBudget": self.thinking_budget}}
-                   if self.thinking_budget is not None else {}),
+                **self._thinking_config(),
             },
         }
         try:
@@ -274,6 +280,12 @@ class GeminiClient:
         except httpx.HTTPError as e:
             raise GeminiError("transient", f"network error: {type(e).__name__}")
         return self._handle(r.status_code, r.text, allowed)
+
+    def _thinking_config(self) -> dict:
+        """Gemini 2.x: thinkingBudget (0 = off). Gemini 3+: thinkingLevel (budget is not supported)."""
+        if self.model.startswith("gemini-2"):
+            return {"thinkingConfig": {"thinkingBudget": self.thinking_budget}} if self.thinking_budget is not None else {}
+        return {"thinkingConfig": {"thinkingLevel": self.thinking_level}} if self.thinking_level else {}
 
     def _handle(self, status: int, text: str, allowed: dict[str, list[str]]) -> list[Plan]:
         text = self._scrub(text)

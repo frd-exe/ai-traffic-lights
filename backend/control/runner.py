@@ -46,6 +46,8 @@ class RunResult:
     metrics: Metrics
     max_avg_queue: float = 0.0
     max_external: int = 0
+    max_queue: int = 0  # most stopped vehicles on any single approach edge (sampled every 10 sim-s)
+    exits: int = 0  # genuine trip completions during the run (teleports excluded)
     overrides: dict[str, int] = field(default_factory=dict)
     limit_reached_at_t: float | None = None
     ai_calls_ok: int = 0
@@ -70,7 +72,9 @@ def run_headless(
     commands: dict[str, str] = {}
     end = engine.t + seconds
     next_decide = engine.t
-    max_q, max_ext = 0.0, 0
+    max_q, max_ext, max_lane_q = 0.0, 0, 0
+    exits0 = engine.completed
+    approach_edges = {a.in_edge for i in engine.intersections for a in i.approaches}
     try:
         while engine.t < end - 1e-9:
             if engine.t >= next_decide - 1e-9:
@@ -86,13 +90,19 @@ def run_headless(
                     m = engine.metrics(mode, effective_of(mode, controller))
                     max_q = max(max_q, m.avg_queue)
                     max_ext = max(max_ext, sum(map(len, engine.external.values())))
+                    stopped: dict[str, int] = {}
+                    for car in engine.cars.values():
+                        if car.speed < 0.5 and car.edge in approach_edges:
+                            stopped[car.edge] = stopped.get(car.edge, 0) + 1
+                    max_lane_q = max(max_lane_q, max(stopped.values(), default=0))
                 next_decide += CONTROLLER_PERIOD_S
             engine.step(SIM_DT_S, commands)
     finally:
         if loop:
             loop.close()
     res = RunResult(metrics=engine.metrics(mode, effective_of(mode, controller)), max_avg_queue=max_q,
-                    max_external=max_ext, overrides=dict(safety.counts))
+                    max_external=max_ext, overrides=dict(safety.counts), max_queue=max_lane_q,
+                    exits=engine.completed - exits0)
     if mode == "ai":
         res.limit_reached_at_t = controller.limit_reached_at_t
         res.ai_calls_ok, res.ai_calls_failed = controller.calls_ok, controller.calls_failed

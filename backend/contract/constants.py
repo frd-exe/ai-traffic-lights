@@ -5,7 +5,7 @@ All values are SI (seconds, metres, metres/second) unless the name says otherwis
 
 from typing import Final
 
-CONTRACT_VERSION: Final = "0.3.0"
+CONTRACT_VERSION: Final = "0.3.1"
 
 # --- Signal timing (engine rules) ---
 YELLOW_S: Final = 3.0

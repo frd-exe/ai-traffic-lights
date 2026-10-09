@@ -32,6 +32,9 @@ CAR_LENGTH = 4.5
 MIN_GAP = 2.0
 SPACING = CAR_LENGTH + MIN_GAP
 RESERVATION_S = 2.0  # a crossing blocks conflicting movements at the node for this long
+# A stopped car within this distance of the edge end counts as "at the stop line". IDM keeps its
+# MIN_GAP to the stop line, so waiting cars rest ~0.1-2.1 m before the edge end.
+STOP_LINE_TOL_M = MIN_GAP + 1.0
 OPPOSING_TOLERANCE_DEG = 30.0
 ROAD_PRIORITY = {name: rank for rank, name in enumerate(
     ["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified",
@@ -85,6 +88,8 @@ class SimEngine:
         self.crossing_moves = deque(maxlen=10000)  # (time, node, in_edge, out_edge) for audits/tests
         self.blocked_spawns = 0
         self.deadlocks = 0
+        self.standoffs_resolved = 0  # unsignalised all-way standoffs broken by the oldest-waiter rule
+        self._standoff_go: dict[str, str] = {}  # car id -> edge on which it won right of way
         self.generated = 0
         self.completed = 0
         self.teleported = 0
@@ -180,40 +185,76 @@ class SimEngine:
                 lanes[edge_id, car.lane].append(car)
                 self._record_arrival(car)
 
-    def _permission(self, car, lanes):
+    def _basic_ok(self, car, lanes):
+        """Movement reservation + downstream space (everything except signals and priority)."""
         edge = self.edges[car.edge]
+        out_edge = car.route[car.index + 1] if car.index + 1 < len(car.route) else None
+        if self._blocked_by_reservation(edge.to_node, (car.edge, out_edge)):
+            return False
+        if out_edge is not None and self._space(out_edge, lanes) is None:
+            return False
+        return True
+
+    def _at_line_stopped(self, c):
+        return c.speed < STOPPED_SPEED_MPS and self.edges[c.edge].length_m - c.x < STOP_LINE_TOL_M
+
+    def _yield_blockers(self, car, intersection, approach, lanes):
+        """Lead cars on approaches `car` must yield to that are too close (priority + gap acceptance)."""
+        own_rank = ROAD_PRIORITY[self.edges[car.edge].road_class]
+        blockers = []
+        for other in intersection.approaches:
+            if other.id == approach.id:
+                continue
+            other_edge = self.edges[other.in_edge]
+            rank = ROAD_PRIORITY[other_edge.road_class]
+            delta = (other.bearing - approach.bearing) % 360
+            yields = rank < own_rank or (rank == own_rank and 180 < delta < 360)
+            if not yields:
+                continue
+            for lane in range(other_edge.lanes):
+                queue = lanes.get((other.in_edge, lane), [])
+                if not queue:
+                    continue
+                lead = queue[0]
+                gap_time = (other_edge.length_m - lead.x) / max(lead.speed, 1.0)
+                # Per-driver headway variation from the independent driver RNG.
+                if gap_time < 3.0 + car.headway:
+                    blockers.append(lead)
+        return blockers
+
+    def _permission(self, car, lanes):
         pair = self.approach_map.get(car.edge)
         if pair:
             intersection, approach = pair
             signal = self.signal_map.get(intersection.id)
             if signal and (signal.stage != "green" or approach.id not in signal.green_ids()):
                 return False
-        out_edge = car.route[car.index + 1] if car.index + 1 < len(car.route) else None
-        if self._blocked_by_reservation(edge.to_node, (car.edge, out_edge)):
-            return False
-        if car.index + 1 < len(car.route) and self._space(car.route[car.index + 1], lanes) is None:
+        if not self._basic_ok(car, lanes):
             return False
         if pair and pair[0].id not in self.signal_map:
             intersection, approach = pair
-            own_rank = ROAD_PRIORITY[edge.road_class]
-            for other in intersection.approaches:
-                if other.id == approach.id:
-                    continue
-                other_edge = self.edges[other.in_edge]
-                rank = ROAD_PRIORITY[other_edge.road_class]
-                delta = (other.bearing - approach.bearing) % 360
-                yields = rank < own_rank or (rank == own_rank and 180 < delta < 360)
-                if not yields:
-                    continue
-                for lane in range(other_edge.lanes):
-                    queue = lanes.get((other.in_edge, lane), [])
-                    if not queue:
-                        continue
-                    lead = queue[0]
-                    gap_time = (other_edge.length_m - lead.x) / max(lead.speed, 1.0)
-                    # Per-driver headway variation from the independent driver RNG.
-                    if gap_time < 3.0 + car.headway:
-                        return False
+            if self._standoff_go.get(car.id) == car.edge:
+                return True  # won a standoff on this edge: keeps right of way until it has crossed
+            blockers = self._yield_blockers(car, intersection, approach, lanes)
+            if not blockers:
+                return True
+            # Standoff breaker (all-way-stop rule): if this car and every car it yields to are all
+            # stopped at their stop lines, nobody would ever move (e.g. four equal-class approaches
+            # under the right-hand rule). Then the head that has waited longest and can move goes.
+            if not (self._at_line_stopped(car) and all(self._at_line_stopped(b) for b in blockers)):
+                return False
+            heads = []
+            for a in intersection.approaches:
+                for lane in range(self.edges[a.in_edge].lanes):
+                    q = lanes.get((a.in_edge, lane), [])
+                    if q and self._at_line_stopped(q[0]) and self._basic_ok(q[0], lanes):
+                        heads.append(q[0])
+            winner = max(heads, key=lambda c: (c.stopped, c.id), default=None)
+            if winner is car:
+                self._standoff_go[car.id] = car.edge
+                self.standoffs_resolved += 1
+                return True
+            return False
         return True
 
     def step(self, dt, commands):
@@ -287,6 +328,7 @@ class SimEngine:
                     active = [r for r in self.reservations.get(edge.to_node, []) if r[0] > self.t + 1e-9]
                     active.append((self.t + RESERVATION_S, car.edge, out_edge))
                     self.reservations[edge.to_node] = active
+                    self._standoff_go.pop(car.id, None)
                     current_queue.remove(car)
                     if car.index + 1 == len(car.route):
                         self._finish(car, self.t + dt)
