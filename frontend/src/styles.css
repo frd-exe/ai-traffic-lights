@@ -1,0 +1,32 @@
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font: 14px/1.4 system-ui, sans-serif; color: #1d232a; }
+
+.app { display: flex; height: 100%; }
+.panel { width: 340px; padding: 16px; overflow-y: auto; border-right: 1px solid #ddd; background: #fafbfc; }
+.panel h1 { font-size: 18px; margin: 0 0 12px; }
+.panel h2 { font-size: 14px; margin: 18px 0 6px; }
+.panel label { display: block; margin: 8px 0; }
+.panel select { display: block; width: 100%; margin-top: 2px; padding: 4px; }
+.panel button { padding: 6px 10px; margin-right: 6px; cursor: pointer; }
+.row { display: flex; align-items: center; gap: 6px; }
+.hint { color: #667; font-size: 12px; }
+.error { color: #b00020; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+td, th { padding: 3px 4px; border-bottom: 1px solid #eee; text-align: left; }
+.feed { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+.feed li { padding: 4px 0; border-bottom: 1px solid #eee; }
+.feed li.session { color: #8a4b00; font-weight: 600; }
+
+.main { position: relative; flex: 1; }
+.map { position: absolute; inset: 0; }
+.banners { position: absolute; z-index: 2; top: 8px; left: 50%; transform: translateX(-50%); width: min(720px, 90%); }
+.banner { padding: 8px 12px; margin-bottom: 6px; border-radius: 6px; font-weight: 600; box-shadow: 0 1px 4px rgb(0 0 0 / 20%); }
+.banner.warn { background: #fff3cd; border: 1px solid #e0a800; }
+.banner.info { background: #e7f1ff; border: 1px solid #6ea8fe; }
+.toast { position: absolute; z-index: 3; right: 16px; bottom: 24px; max-width: 360px; padding: 12px 14px; border-radius: 6px; background: #2b2b2b; color: #fff; }
+
+@media (max-width: 720px) {
+  .app { flex-direction: column; }
+  .panel { width: 100%; max-height: 45%; border-right: none; border-bottom: 1px solid #ddd; }
+}

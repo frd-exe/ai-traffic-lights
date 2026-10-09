@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "description": "machine-readable, snake_case, e.g. unknown_session",
+      "title": "Code",
+      "type": "string"
+    },
+    "details": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Details"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code",
+    "message"
+  ],
+  "title": "ErrorDetail",
+  "type": "object"
+}

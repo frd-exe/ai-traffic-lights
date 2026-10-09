@@ -1,0 +1,121 @@
+{
+  "$defs": {
+    "DemandEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "congestion_ratio": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Google duration / staticDuration; null for baseline_only",
+          "title": "Congestion Ratio"
+        },
+        "entry_node_id": {
+          "title": "Entry Node Id",
+          "type": "string"
+        },
+        "scale": {
+          "description": "multiplies the base (medium) per-entry flow",
+          "exclusiveMinimum": 0,
+          "title": "Scale",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entry_node_id",
+        "scale"
+      ],
+      "title": "DemandEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Resolved ONCE and frozen; sessions reference it by id.",
+  "properties": {
+    "area_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Area Id"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "departure_time": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Time"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/DemandEntry"
+      },
+      "title": "Entries",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "rush"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "set for baseline_only",
+      "title": "Level"
+    },
+    "source": {
+      "enum": [
+        "google_live",
+        "google_cached",
+        "google_snapshot",
+        "baseline_only"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "source",
+    "created_at",
+    "entries"
+  ],
+  "title": "DemandProfile",
+  "type": "object"
+}

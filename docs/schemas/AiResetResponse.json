@@ -1,0 +1,31 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "calls_today": {
+      "minimum": 0,
+      "title": "Calls Today",
+      "type": "integer"
+    },
+    "daily_cap": {
+      "minimum": 0,
+      "title": "Daily Cap",
+      "type": "integer"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "reset": {
+      "title": "Reset",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "reset",
+    "message",
+    "calls_today",
+    "daily_cap"
+  ],
+  "title": "AiResetResponse",
+  "type": "object"
+}

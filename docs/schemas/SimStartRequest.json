@@ -1,0 +1,52 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "area_id": {
+      "title": "Area Id",
+      "type": "string"
+    },
+    "demand_profile_id": {
+      "title": "Demand Profile Id",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "fixed",
+        "webster",
+        "max_pressure",
+        "ai"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "selected_intersections": {
+      "description": "signalised in ALL modes; others unsignalised",
+      "items": {
+        "type": "string"
+      },
+      "title": "Selected Intersections",
+      "type": "array"
+    },
+    "speed": {
+      "default": 1.0,
+      "description": "sim-seconds per wall-second",
+      "exclusiveMinimum": 0,
+      "maximum": 20,
+      "title": "Speed",
+      "type": "number"
+    }
+  },
+  "required": [
+    "area_id",
+    "mode",
+    "demand_profile_id",
+    "seed",
+    "selected_intersections"
+  ],
+  "title": "SimStartRequest",
+  "type": "object"
+}

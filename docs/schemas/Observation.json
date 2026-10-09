@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "ApproachObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "arrival_rate": {
+          "description": "veh/s, trailing 60 sim-s",
+          "minimum": 0,
+          "title": "Arrival Rate",
+          "type": "number"
+        },
+        "queue": {
+          "description": "stopped vehicles within 50 m of stop line",
+          "minimum": 0,
+          "title": "Queue",
+          "type": "integer"
+        },
+        "wait_s": {
+          "description": "longest current continuous stopped time on this approach",
+          "minimum": 0,
+          "title": "Wait S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "queue",
+        "wait_s",
+        "arrival_rate"
+      ],
+      "title": "ApproachObservation",
+      "type": "object"
+    },
+    "IntersectionObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "approaches": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ApproachObservation"
+          },
+          "title": "Approaches",
+          "type": "object"
+        },
+        "current_phase": {
+          "title": "Current Phase",
+          "type": "string"
+        },
+        "is_transition": {
+          "default": false,
+          "title": "Is Transition",
+          "type": "boolean"
+        },
+        "phases": {
+          "items": {
+            "$ref": "#/$defs/Phase"
+          },
+          "title": "Phases",
+          "type": "array"
+        },
+        "time_in_phase_s": {
+          "minimum": 0,
+          "title": "Time In Phase S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "phases",
+        "current_phase",
+        "time_in_phase_s",
+        "approaches"
+      ],
+      "title": "IntersectionObservation",
+      "type": "object"
+    },
+    "Phase": {
+      "additionalProperties": false,
+      "properties": {
+        "approach_ids": {
+          "description": "approaches that get green in this phase",
+          "items": {
+            "type": "string"
+          },
+          "title": "Approach Ids",
+          "type": "array"
+        },
+        "id": {
+          "description": "<intersection_id>:p<k>, unique within an area",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "approach_ids"
+      ],
+      "title": "Phase",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "intersections": {
+      "additionalProperties": {
+        "$ref": "#/$defs/IntersectionObservation"
+      },
+      "title": "Intersections",
+      "type": "object"
+    },
+    "t": {
+      "minimum": 0,
+      "title": "T",
+      "type": "number"
+    }
+  },
+  "required": [
+    "t",
+    "intersections"
+  ],
+  "title": "Observation",
+  "type": "object"
+}

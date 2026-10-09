@@ -1,0 +1,75 @@
+{
+  "additionalProperties": false,
+  "description": "Directed road segment from_node -> to_node.",
+  "properties": {
+    "from_node": {
+      "title": "From Node",
+      "type": "string"
+    },
+    "geometry": {
+      "items": {
+        "description": "[lon, lat]",
+        "items": {
+          "type": "number"
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array"
+      },
+      "minItems": 2,
+      "title": "Geometry",
+      "type": "array"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lanes": {
+      "minimum": 1,
+      "title": "Lanes",
+      "type": "integer"
+    },
+    "length_m": {
+      "exclusiveMinimum": 0,
+      "title": "Length M",
+      "type": "number"
+    },
+    "road_class": {
+      "enum": [
+        "motorway",
+        "trunk",
+        "primary",
+        "secondary",
+        "tertiary",
+        "unclassified",
+        "residential",
+        "living_street",
+        "service"
+      ],
+      "title": "Road Class",
+      "type": "string"
+    },
+    "speed_limit": {
+      "description": "m/s",
+      "exclusiveMinimum": 0,
+      "title": "Speed Limit",
+      "type": "number"
+    },
+    "to_node": {
+      "title": "To Node",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "from_node",
+    "to_node",
+    "geometry",
+    "length_m",
+    "speed_limit",
+    "lanes",
+    "road_class"
+  ],
+  "title": "Edge",
+  "type": "object"
+}

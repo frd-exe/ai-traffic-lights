@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "description": "LLM supervisor output: hold `phase` for up to `hold_s` (engine rules still apply).",
+  "properties": {
+    "hold_s": {
+      "maximum": 120,
+      "minimum": 0,
+      "title": "Hold S",
+      "type": "number"
+    },
+    "intersection_id": {
+      "title": "Intersection Id",
+      "type": "string"
+    },
+    "phase": {
+      "description": "phase id",
+      "title": "Phase",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "intersection_id",
+    "phase",
+    "hold_s",
+    "reason"
+  ],
+  "title": "Plan",
+  "type": "object"
+}

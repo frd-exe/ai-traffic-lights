@@ -1,0 +1,96 @@
+{
+  "additionalProperties": false,
+  "description": "See CONTRACT.md 'Metric definitions'; identical in engine, experiments and UI.",
+  "properties": {
+    "avg_queue": {
+      "minimum": 0,
+      "title": "Avg Queue",
+      "type": "number"
+    },
+    "avg_wait_s": {
+      "minimum": 0,
+      "title": "Avg Wait S",
+      "type": "number"
+    },
+    "blocked_spawns": {
+      "minimum": 0,
+      "title": "Blocked Spawns",
+      "type": "integer"
+    },
+    "deadlocks": {
+      "minimum": 0,
+      "title": "Deadlocks",
+      "type": "integer"
+    },
+    "effective_controller": {
+      "enum": [
+        "gemini+max_pressure",
+        "fixed",
+        "webster",
+        "max_pressure"
+      ],
+      "title": "Effective Controller",
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "fixed",
+        "webster",
+        "max_pressure",
+        "ai"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "population": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "vehicles in the metric population",
+      "title": "Population"
+    },
+    "t": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "sim time the metrics refer to",
+      "title": "T"
+    },
+    "throughput_per_min": {
+      "minimum": 0,
+      "title": "Throughput Per Min",
+      "type": "number"
+    },
+    "trip_delay_s": {
+      "minimum": 0,
+      "title": "Trip Delay S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "mode",
+    "effective_controller",
+    "trip_delay_s",
+    "avg_wait_s",
+    "avg_queue",
+    "throughput_per_min",
+    "blocked_spawns",
+    "deadlocks"
+  ],
+  "title": "Metrics",
+  "type": "object"
+}

@@ -1,0 +1,30 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "arrival_rate": {
+      "description": "veh/s, trailing 60 sim-s",
+      "minimum": 0,
+      "title": "Arrival Rate",
+      "type": "number"
+    },
+    "queue": {
+      "description": "stopped vehicles within 50 m of stop line",
+      "minimum": 0,
+      "title": "Queue",
+      "type": "integer"
+    },
+    "wait_s": {
+      "description": "longest current continuous stopped time on this approach",
+      "minimum": 0,
+      "title": "Wait S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "queue",
+    "wait_s",
+    "arrival_rate"
+  ],
+  "title": "ApproachObservation",
+  "type": "object"
+}

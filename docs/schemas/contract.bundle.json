@@ -1,0 +1,1517 @@
+{
+  "$defs": {
+    "AiResetResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "calls_today": {
+          "minimum": 0,
+          "title": "Calls Today",
+          "type": "integer"
+        },
+        "daily_cap": {
+          "minimum": 0,
+          "title": "Daily Cap",
+          "type": "integer"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "reset": {
+          "title": "Reset",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reset",
+        "message",
+        "calls_today",
+        "daily_cap"
+      ],
+      "title": "AiResetResponse",
+      "type": "object"
+    },
+    "Approach": {
+      "additionalProperties": false,
+      "properties": {
+        "bearing": {
+          "description": "direction FROM the intersection TOWARD the upstream end of in_edge",
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Bearing",
+          "type": "number"
+        },
+        "id": {
+          "description": "a_ + sha1(intersection_id:bearing_rounded_5deg)[:8]",
+          "title": "Id",
+          "type": "string"
+        },
+        "in_edge": {
+          "title": "In Edge",
+          "type": "string"
+        },
+        "lanes": {
+          "minimum": 1,
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "out_edges": {
+          "description": "edges a vehicle on this approach may take (no U-turns)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Out Edges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "bearing",
+        "lanes",
+        "in_edge",
+        "out_edges"
+      ],
+      "title": "Approach",
+      "type": "object"
+    },
+    "ApproachObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "arrival_rate": {
+          "description": "veh/s, trailing 60 sim-s",
+          "minimum": 0,
+          "title": "Arrival Rate",
+          "type": "number"
+        },
+        "queue": {
+          "description": "stopped vehicles within 50 m of stop line",
+          "minimum": 0,
+          "title": "Queue",
+          "type": "integer"
+        },
+        "wait_s": {
+          "description": "longest current continuous stopped time on this approach",
+          "minimum": 0,
+          "title": "Wait S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "queue",
+        "wait_s",
+        "arrival_rate"
+      ],
+      "title": "ApproachObservation",
+      "type": "object"
+    },
+    "AreaRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "$ref": "#/$defs/BBox"
+        },
+        "ignore_osm_signals": {
+          "default": false,
+          "title": "Ignore Osm Signals",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "bbox"
+      ],
+      "title": "AreaRequest",
+      "type": "object"
+    },
+    "AreaResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "area_id": {
+          "title": "Area Id",
+          "type": "string"
+        },
+        "intersections": {
+          "description": "ranked: best signal candidates first",
+          "items": {
+            "$ref": "#/$defs/Intersection"
+          },
+          "title": "Intersections",
+          "type": "array"
+        },
+        "network": {
+          "$ref": "#/$defs/RoadNetwork"
+        },
+        "recommended_ids": {
+          "description": "default selection for the UI",
+          "items": {
+            "type": "string"
+          },
+          "title": "Recommended Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "area_id",
+        "network",
+        "intersections"
+      ],
+      "title": "AreaResponse",
+      "type": "object"
+    },
+    "BBox": {
+      "additionalProperties": false,
+      "properties": {
+        "east": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "East",
+          "type": "number"
+        },
+        "north": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "North",
+          "type": "number"
+        },
+        "south": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "South",
+          "type": "number"
+        },
+        "west": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "West",
+          "type": "number"
+        }
+      },
+      "required": [
+        "west",
+        "south",
+        "east",
+        "north"
+      ],
+      "title": "BBox",
+      "type": "object"
+    },
+    "ControllerStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "calls_last_min": {
+          "minimum": 0,
+          "title": "Calls Last Min",
+          "type": "integer"
+        },
+        "calls_today": {
+          "minimum": 0,
+          "title": "Calls Today",
+          "type": "integer"
+        },
+        "daily_cap": {
+          "minimum": 0,
+          "title": "Daily Cap",
+          "type": "integer"
+        },
+        "effective_controller": {
+          "enum": [
+            "gemini+max_pressure",
+            "fixed",
+            "webster",
+            "max_pressure"
+          ],
+          "title": "Effective Controller",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "since_t": {
+          "description": "sim time when this state began",
+          "minimum": 0,
+          "title": "Since T",
+          "type": "number"
+        },
+        "state": {
+          "enum": [
+            "ai_active",
+            "ai_limit_reached",
+            "ai_unavailable",
+            "ai_replay",
+            "traditional"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "effective_controller",
+        "message",
+        "since_t",
+        "calls_last_min",
+        "calls_today",
+        "daily_cap"
+      ],
+      "title": "ControllerStatus",
+      "type": "object"
+    },
+    "DataStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "calls_today": {
+          "minimum": 0,
+          "title": "Calls Today",
+          "type": "integer"
+        },
+        "daily_cap": {
+          "minimum": 0,
+          "title": "Daily Cap",
+          "type": "integer"
+        },
+        "last_update": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the underlying Google data was fetched",
+          "title": "Last Update"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "google_live",
+            "google_cached",
+            "google_snapshot",
+            "baseline_only"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "message",
+        "last_update",
+        "calls_today",
+        "daily_cap"
+      ],
+      "title": "DataStatus",
+      "type": "object"
+    },
+    "DemandEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "congestion_ratio": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Google duration / staticDuration; null for baseline_only",
+          "title": "Congestion Ratio"
+        },
+        "entry_node_id": {
+          "title": "Entry Node Id",
+          "type": "string"
+        },
+        "scale": {
+          "description": "multiplies the base (medium) per-entry flow",
+          "exclusiveMinimum": 0,
+          "title": "Scale",
+          "type": "number"
+        }
+      },
+      "required": [
+        "entry_node_id",
+        "scale"
+      ],
+      "title": "DemandEntry",
+      "type": "object"
+    },
+    "DemandProfile": {
+      "additionalProperties": false,
+      "description": "Resolved ONCE and frozen; sessions reference it by id.",
+      "properties": {
+        "area_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "departure_time": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure Time"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/DemandEntry"
+          },
+          "title": "Entries",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "rush"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "set for baseline_only",
+          "title": "Level"
+        },
+        "source": {
+          "enum": [
+            "google_live",
+            "google_cached",
+            "google_snapshot",
+            "baseline_only"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source",
+        "created_at",
+        "entries"
+      ],
+      "title": "DemandProfile",
+      "type": "object"
+    },
+    "DemandResolveRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "area_id": {
+          "title": "Area Id",
+          "type": "string"
+        },
+        "departure_time": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure Time"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "rush"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "baseline level; default medium",
+          "title": "Level"
+        },
+        "source": {
+          "enum": [
+            "google_live",
+            "google_snapshot",
+            "baseline"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "area_id",
+        "source"
+      ],
+      "title": "DemandResolveRequest",
+      "type": "object"
+    },
+    "DemandResolveResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "data_status": {
+          "$ref": "#/$defs/DataStatus"
+        },
+        "demand_profile": {
+          "$ref": "#/$defs/DemandProfile"
+        }
+      },
+      "required": [
+        "demand_profile",
+        "data_status"
+      ],
+      "title": "DemandResolveResponse",
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "description": "Directed road segment from_node -> to_node.",
+      "properties": {
+        "from_node": {
+          "title": "From Node",
+          "type": "string"
+        },
+        "geometry": {
+          "items": {
+            "description": "[lon, lat]",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "minItems": 2,
+          "title": "Geometry",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lanes": {
+          "minimum": 1,
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "length_m": {
+          "exclusiveMinimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "road_class": {
+          "enum": [
+            "motorway",
+            "trunk",
+            "primary",
+            "secondary",
+            "tertiary",
+            "unclassified",
+            "residential",
+            "living_street",
+            "service"
+          ],
+          "title": "Road Class",
+          "type": "string"
+        },
+        "speed_limit": {
+          "description": "m/s",
+          "exclusiveMinimum": 0,
+          "title": "Speed Limit",
+          "type": "number"
+        },
+        "to_node": {
+          "title": "To Node",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from_node",
+        "to_node",
+        "geometry",
+        "length_m",
+        "speed_limit",
+        "lanes",
+        "road_class"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "description": "machine-readable, snake_case, e.g. unknown_session",
+          "title": "Code",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Details"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "description": "Body of every non-2xx REST response and of WS error frames.",
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ErrorDetail"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "Explanation": {
+      "additionalProperties": false,
+      "properties": {
+        "intersection_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null = session-wide (e.g. AI fallback notice)",
+          "title": "Intersection Id"
+        },
+        "t": {
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "intersection_id",
+        "text"
+      ],
+      "title": "Explanation",
+      "type": "object"
+    },
+    "GeocodeResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "results": {
+          "items": {
+            "$ref": "#/$defs/GeocodeResult"
+          },
+          "title": "Results",
+          "type": "array"
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "title": "GeocodeResponse",
+      "type": "object"
+    },
+    "GeocodeResult": {
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "display_name",
+        "lat",
+        "lon"
+      ],
+      "title": "GeocodeResult",
+      "type": "object"
+    },
+    "HealthResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "default": "0.1.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "mock": {
+          "default": false,
+          "title": "Mock",
+          "type": "boolean"
+        },
+        "status": {
+          "const": "ok",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "HealthResponse",
+      "type": "object"
+    },
+    "Intersection": {
+      "additionalProperties": false,
+      "properties": {
+        "approaches": {
+          "items": {
+            "$ref": "#/$defs/Approach"
+          },
+          "title": "Approaches",
+          "type": "array"
+        },
+        "has_signal_in_osm": {
+          "title": "Has Signal In Osm",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "i_ + sha1(lat5,lon5)[:8]",
+          "title": "Id",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "sim_gain_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimated delay saved by signalising (s); null until computed",
+          "title": "Sim Gain S"
+        },
+        "structural_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Structural Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "node_id",
+        "lat",
+        "lon",
+        "approaches",
+        "has_signal_in_osm",
+        "structural_score"
+      ],
+      "title": "Intersection",
+      "type": "object"
+    },
+    "IntersectionObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "approaches": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ApproachObservation"
+          },
+          "title": "Approaches",
+          "type": "object"
+        },
+        "current_phase": {
+          "title": "Current Phase",
+          "type": "string"
+        },
+        "is_transition": {
+          "default": false,
+          "title": "Is Transition",
+          "type": "boolean"
+        },
+        "phases": {
+          "items": {
+            "$ref": "#/$defs/Phase"
+          },
+          "title": "Phases",
+          "type": "array"
+        },
+        "time_in_phase_s": {
+          "minimum": 0,
+          "title": "Time In Phase S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "phases",
+        "current_phase",
+        "time_in_phase_s",
+        "approaches"
+      ],
+      "title": "IntersectionObservation",
+      "type": "object"
+    },
+    "Metrics": {
+      "additionalProperties": false,
+      "description": "See CONTRACT.md 'Metric definitions'; identical in engine, experiments and UI.",
+      "properties": {
+        "avg_queue": {
+          "minimum": 0,
+          "title": "Avg Queue",
+          "type": "number"
+        },
+        "avg_wait_s": {
+          "minimum": 0,
+          "title": "Avg Wait S",
+          "type": "number"
+        },
+        "blocked_spawns": {
+          "minimum": 0,
+          "title": "Blocked Spawns",
+          "type": "integer"
+        },
+        "deadlocks": {
+          "minimum": 0,
+          "title": "Deadlocks",
+          "type": "integer"
+        },
+        "effective_controller": {
+          "enum": [
+            "gemini+max_pressure",
+            "fixed",
+            "webster",
+            "max_pressure"
+          ],
+          "title": "Effective Controller",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "fixed",
+            "webster",
+            "max_pressure",
+            "ai"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "population": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "vehicles in the metric population",
+          "title": "Population"
+        },
+        "t": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sim time the metrics refer to",
+          "title": "T"
+        },
+        "throughput_per_min": {
+          "minimum": 0,
+          "title": "Throughput Per Min",
+          "type": "number"
+        },
+        "trip_delay_s": {
+          "minimum": 0,
+          "title": "Trip Delay S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode",
+        "effective_controller",
+        "trip_delay_s",
+        "avg_wait_s",
+        "avg_queue",
+        "throughput_per_min",
+        "blocked_spawns",
+        "deadlocks"
+      ],
+      "title": "Metrics",
+      "type": "object"
+    },
+    "MetricsResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "t": {
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        }
+      },
+      "required": [
+        "session_id",
+        "t",
+        "metrics"
+      ],
+      "title": "MetricsResponse",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "lat",
+        "lon"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "Observation": {
+      "additionalProperties": false,
+      "properties": {
+        "intersections": {
+          "additionalProperties": {
+            "$ref": "#/$defs/IntersectionObservation"
+          },
+          "title": "Intersections",
+          "type": "object"
+        },
+        "t": {
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "intersections"
+      ],
+      "title": "Observation",
+      "type": "object"
+    },
+    "Phase": {
+      "additionalProperties": false,
+      "properties": {
+        "approach_ids": {
+          "description": "approaches that get green in this phase",
+          "items": {
+            "type": "string"
+          },
+          "title": "Approach Ids",
+          "type": "array"
+        },
+        "id": {
+          "description": "<intersection_id>:p<k>, unique within an area",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "approach_ids"
+      ],
+      "title": "Phase",
+      "type": "object"
+    },
+    "Plan": {
+      "additionalProperties": false,
+      "description": "LLM supervisor output: hold `phase` for up to `hold_s` (engine rules still apply).",
+      "properties": {
+        "hold_s": {
+          "maximum": 120,
+          "minimum": 0,
+          "title": "Hold S",
+          "type": "number"
+        },
+        "intersection_id": {
+          "title": "Intersection Id",
+          "type": "string"
+        },
+        "phase": {
+          "description": "phase id",
+          "title": "Phase",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intersection_id",
+        "phase",
+        "hold_s",
+        "reason"
+      ],
+      "title": "Plan",
+      "type": "object"
+    },
+    "RoadNetwork": {
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "entry_nodes": {
+          "description": "boundary nodes where vehicles spawn",
+          "items": {
+            "type": "string"
+          },
+          "title": "Entry Nodes",
+          "type": "array"
+        },
+        "exit_nodes": {
+          "description": "boundary nodes where vehicles leave",
+          "items": {
+            "type": "string"
+          },
+          "title": "Exit Nodes",
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "title": "Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges",
+        "entry_nodes",
+        "exit_nodes"
+      ],
+      "title": "RoadNetwork",
+      "type": "object"
+    },
+    "SignalState": {
+      "additionalProperties": false,
+      "properties": {
+        "color_per_approach": {
+          "additionalProperties": {
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "type": "string"
+          },
+          "title": "Color Per Approach",
+          "type": "object"
+        },
+        "intersection_id": {
+          "title": "Intersection Id",
+          "type": "string"
+        },
+        "is_transition": {
+          "description": "true during yellow / all-red",
+          "title": "Is Transition",
+          "type": "boolean"
+        },
+        "phase_id": {
+          "description": "phase being served; during a transition, the phase being switched TO",
+          "title": "Phase Id",
+          "type": "string"
+        },
+        "time_in_phase_s": {
+          "description": "seconds since this phase (or transition) began",
+          "minimum": 0,
+          "title": "Time In Phase S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "intersection_id",
+        "phase_id",
+        "color_per_approach",
+        "time_in_phase_s",
+        "is_transition"
+      ],
+      "title": "SignalState",
+      "type": "object"
+    },
+    "SimStartRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "area_id": {
+          "title": "Area Id",
+          "type": "string"
+        },
+        "demand_profile_id": {
+          "title": "Demand Profile Id",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "fixed",
+            "webster",
+            "max_pressure",
+            "ai"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "selected_intersections": {
+          "description": "signalised in ALL modes; others unsignalised",
+          "items": {
+            "type": "string"
+          },
+          "title": "Selected Intersections",
+          "type": "array"
+        },
+        "speed": {
+          "default": 1.0,
+          "description": "sim-seconds per wall-second",
+          "exclusiveMinimum": 0,
+          "maximum": 20,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "area_id",
+        "mode",
+        "demand_profile_id",
+        "seed",
+        "selected_intersections"
+      ],
+      "title": "SimStartRequest",
+      "type": "object"
+    },
+    "SimStartResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "SimStartResponse",
+      "type": "object"
+    },
+    "SimStopRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "SimStopRequest",
+      "type": "object"
+    },
+    "SimStopResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "final_metrics": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metrics"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "stopped": {
+          "title": "Stopped",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "session_id",
+        "stopped"
+      ],
+      "title": "SimStopResponse",
+      "type": "object"
+    },
+    "SimTick": {
+      "additionalProperties": false,
+      "description": "WS /ws/sim frame, 5 Hz, latest-only (stale ticks dropped).",
+      "properties": {
+        "controller_status": {
+          "$ref": "#/$defs/ControllerStatus"
+        },
+        "data_status": {
+          "$ref": "#/$defs/DataStatus"
+        },
+        "explanations": {
+          "description": "new since the previous delivered tick",
+          "items": {
+            "$ref": "#/$defs/Explanation"
+          },
+          "title": "Explanations",
+          "type": "array"
+        },
+        "metrics": {
+          "$ref": "#/$defs/Metrics"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/SignalState"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "t": {
+          "description": "sim seconds",
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        },
+        "type": {
+          "const": "tick",
+          "default": "tick",
+          "title": "Type",
+          "type": "string"
+        },
+        "vehicles": {
+          "items": {
+            "$ref": "#/$defs/Vehicle"
+          },
+          "title": "Vehicles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "session_id",
+        "t",
+        "vehicles",
+        "signals",
+        "metrics",
+        "controller_status",
+        "data_status",
+        "explanations"
+      ],
+      "title": "SimTick",
+      "type": "object"
+    },
+    "Vehicle": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "heading": {
+          "description": "degrees, 0 = north, clockwise",
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Heading",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "offset_m": {
+          "description": "distance from the start of edge_id",
+          "minimum": 0,
+          "title": "Offset M",
+          "type": "number"
+        },
+        "speed": {
+          "description": "m/s",
+          "minimum": 0,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "edge_id",
+        "offset_m",
+        "lat",
+        "lon",
+        "heading",
+        "speed"
+      ],
+      "title": "Vehicle",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "AI traffic lights contract v0.1.0 (generated, do not edit)",
+  "properties": {
+    "AiResetResponse": {
+      "$ref": "#/$defs/AiResetResponse"
+    },
+    "Approach": {
+      "$ref": "#/$defs/Approach"
+    },
+    "ApproachObservation": {
+      "$ref": "#/$defs/ApproachObservation"
+    },
+    "AreaRequest": {
+      "$ref": "#/$defs/AreaRequest"
+    },
+    "AreaResponse": {
+      "$ref": "#/$defs/AreaResponse"
+    },
+    "BBox": {
+      "$ref": "#/$defs/BBox"
+    },
+    "ControllerStatus": {
+      "$ref": "#/$defs/ControllerStatus"
+    },
+    "DataStatus": {
+      "$ref": "#/$defs/DataStatus"
+    },
+    "DemandEntry": {
+      "$ref": "#/$defs/DemandEntry"
+    },
+    "DemandProfile": {
+      "$ref": "#/$defs/DemandProfile"
+    },
+    "DemandResolveRequest": {
+      "$ref": "#/$defs/DemandResolveRequest"
+    },
+    "DemandResolveResponse": {
+      "$ref": "#/$defs/DemandResolveResponse"
+    },
+    "Edge": {
+      "$ref": "#/$defs/Edge"
+    },
+    "ErrorDetail": {
+      "$ref": "#/$defs/ErrorDetail"
+    },
+    "ErrorResponse": {
+      "$ref": "#/$defs/ErrorResponse"
+    },
+    "Explanation": {
+      "$ref": "#/$defs/Explanation"
+    },
+    "GeocodeResponse": {
+      "$ref": "#/$defs/GeocodeResponse"
+    },
+    "GeocodeResult": {
+      "$ref": "#/$defs/GeocodeResult"
+    },
+    "HealthResponse": {
+      "$ref": "#/$defs/HealthResponse"
+    },
+    "Intersection": {
+      "$ref": "#/$defs/Intersection"
+    },
+    "IntersectionObservation": {
+      "$ref": "#/$defs/IntersectionObservation"
+    },
+    "Metrics": {
+      "$ref": "#/$defs/Metrics"
+    },
+    "MetricsResponse": {
+      "$ref": "#/$defs/MetricsResponse"
+    },
+    "Node": {
+      "$ref": "#/$defs/Node"
+    },
+    "Observation": {
+      "$ref": "#/$defs/Observation"
+    },
+    "Phase": {
+      "$ref": "#/$defs/Phase"
+    },
+    "Plan": {
+      "$ref": "#/$defs/Plan"
+    },
+    "RoadNetwork": {
+      "$ref": "#/$defs/RoadNetwork"
+    },
+    "SignalState": {
+      "$ref": "#/$defs/SignalState"
+    },
+    "SimStartRequest": {
+      "$ref": "#/$defs/SimStartRequest"
+    },
+    "SimStartResponse": {
+      "$ref": "#/$defs/SimStartResponse"
+    },
+    "SimStopRequest": {
+      "$ref": "#/$defs/SimStopRequest"
+    },
+    "SimStopResponse": {
+      "$ref": "#/$defs/SimStopResponse"
+    },
+    "SimTick": {
+      "$ref": "#/$defs/SimTick"
+    },
+    "Vehicle": {
+      "$ref": "#/$defs/Vehicle"
+    }
+  },
+  "title": "Contract",
+  "type": "object"
+}

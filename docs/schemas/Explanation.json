@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "intersection_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "null = session-wide (e.g. AI fallback notice)",
+      "title": "Intersection Id"
+    },
+    "t": {
+      "minimum": 0,
+      "title": "T",
+      "type": "number"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "t",
+    "intersection_id",
+    "text"
+  ],
+  "title": "Explanation",
+  "type": "object"
+}

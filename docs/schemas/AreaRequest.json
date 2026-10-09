@@ -1,0 +1,57 @@
+{
+  "$defs": {
+    "BBox": {
+      "additionalProperties": false,
+      "properties": {
+        "east": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "East",
+          "type": "number"
+        },
+        "north": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "North",
+          "type": "number"
+        },
+        "south": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "South",
+          "type": "number"
+        },
+        "west": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "West",
+          "type": "number"
+        }
+      },
+      "required": [
+        "west",
+        "south",
+        "east",
+        "north"
+      ],
+      "title": "BBox",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "bbox": {
+      "$ref": "#/$defs/BBox"
+    },
+    "ignore_osm_signals": {
+      "default": false,
+      "title": "Ignore Osm Signals",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "bbox"
+  ],
+  "title": "AreaRequest",
+  "type": "object"
+}

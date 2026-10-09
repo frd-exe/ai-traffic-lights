@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "calls_today": {
+      "minimum": 0,
+      "title": "Calls Today",
+      "type": "integer"
+    },
+    "daily_cap": {
+      "minimum": 0,
+      "title": "Daily Cap",
+      "type": "integer"
+    },
+    "last_update": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "when the underlying Google data was fetched",
+      "title": "Last Update"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "google_live",
+        "google_cached",
+        "google_snapshot",
+        "baseline_only"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "state",
+    "message",
+    "last_update",
+    "calls_today",
+    "daily_cap"
+  ],
+  "title": "DataStatus",
+  "type": "object"
+}

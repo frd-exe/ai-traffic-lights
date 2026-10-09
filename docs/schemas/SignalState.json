@@ -1,0 +1,46 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "color_per_approach": {
+      "additionalProperties": {
+        "enum": [
+          "green",
+          "yellow",
+          "red"
+        ],
+        "type": "string"
+      },
+      "title": "Color Per Approach",
+      "type": "object"
+    },
+    "intersection_id": {
+      "title": "Intersection Id",
+      "type": "string"
+    },
+    "is_transition": {
+      "description": "true during yellow / all-red",
+      "title": "Is Transition",
+      "type": "boolean"
+    },
+    "phase_id": {
+      "description": "phase being served; during a transition, the phase being switched TO",
+      "title": "Phase Id",
+      "type": "string"
+    },
+    "time_in_phase_s": {
+      "description": "seconds since this phase (or transition) began",
+      "minimum": 0,
+      "title": "Time In Phase S",
+      "type": "number"
+    }
+  },
+  "required": [
+    "intersection_id",
+    "phase_id",
+    "color_per_approach",
+    "time_in_phase_s",
+    "is_transition"
+  ],
+  "title": "SignalState",
+  "type": "object"
+}

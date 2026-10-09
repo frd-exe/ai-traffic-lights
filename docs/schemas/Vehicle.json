@@ -1,0 +1,55 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "edge_id": {
+      "title": "Edge Id",
+      "type": "string"
+    },
+    "heading": {
+      "description": "degrees, 0 = north, clockwise",
+      "exclusiveMaximum": 360,
+      "minimum": 0,
+      "title": "Heading",
+      "type": "number"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lat": {
+      "maximum": 90,
+      "minimum": -90,
+      "title": "Lat",
+      "type": "number"
+    },
+    "lon": {
+      "maximum": 180,
+      "minimum": -180,
+      "title": "Lon",
+      "type": "number"
+    },
+    "offset_m": {
+      "description": "distance from the start of edge_id",
+      "minimum": 0,
+      "title": "Offset M",
+      "type": "number"
+    },
+    "speed": {
+      "description": "m/s",
+      "minimum": 0,
+      "title": "Speed",
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "edge_id",
+    "offset_m",
+    "lat",
+    "lon",
+    "heading",
+    "speed"
+  ],
+  "title": "Vehicle",
+  "type": "object"
+}

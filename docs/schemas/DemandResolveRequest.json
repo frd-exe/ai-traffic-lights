@@ -1,0 +1,56 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "area_id": {
+      "title": "Area Id",
+      "type": "string"
+    },
+    "departure_time": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Time"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "rush"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "baseline level; default medium",
+      "title": "Level"
+    },
+    "source": {
+      "enum": [
+        "google_live",
+        "google_snapshot",
+        "baseline"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "area_id",
+    "source"
+  ],
+  "title": "DemandResolveRequest",
+  "type": "object"
+}

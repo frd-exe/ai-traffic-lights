@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "congestion_ratio": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Google duration / staticDuration; null for baseline_only",
+      "title": "Congestion Ratio"
+    },
+    "entry_node_id": {
+      "title": "Entry Node Id",
+      "type": "string"
+    },
+    "scale": {
+      "description": "multiplies the base (medium) per-entry flow",
+      "exclusiveMinimum": 0,
+      "title": "Scale",
+      "type": "number"
+    }
+  },
+  "required": [
+    "entry_node_id",
+    "scale"
+  ],
+  "title": "DemandEntry",
+  "type": "object"
+}

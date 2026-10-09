@@ -1,0 +1,14 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id"
+  ],
+  "title": "SimStopRequest",
+  "type": "object"
+}

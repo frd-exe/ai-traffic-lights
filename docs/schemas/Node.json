@@ -1,0 +1,28 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "lat": {
+      "maximum": 90,
+      "minimum": -90,
+      "title": "Lat",
+      "type": "number"
+    },
+    "lon": {
+      "maximum": 180,
+      "minimum": -180,
+      "title": "Lon",
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "lat",
+    "lon"
+  ],
+  "title": "Node",
+  "type": "object"
+}

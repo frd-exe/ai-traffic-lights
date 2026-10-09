@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "Approach": {
+      "additionalProperties": false,
+      "properties": {
+        "bearing": {
+          "description": "direction FROM the intersection TOWARD the upstream end of in_edge",
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Bearing",
+          "type": "number"
+        },
+        "id": {
+          "description": "a_ + sha1(intersection_id:bearing_rounded_5deg)[:8]",
+          "title": "Id",
+          "type": "string"
+        },
+        "in_edge": {
+          "title": "In Edge",
+          "type": "string"
+        },
+        "lanes": {
+          "minimum": 1,
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "out_edges": {
+          "description": "edges a vehicle on this approach may take (no U-turns)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Out Edges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "bearing",
+        "lanes",
+        "in_edge",
+        "out_edges"
+      ],
+      "title": "Approach",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "approaches": {
+      "items": {
+        "$ref": "#/$defs/Approach"
+      },
+      "title": "Approaches",
+      "type": "array"
+    },
+    "has_signal_in_osm": {
+      "title": "Has Signal In Osm",
+      "type": "boolean"
+    },
+    "id": {
+      "description": "i_ + sha1(lat5,lon5)[:8]",
+      "title": "Id",
+      "type": "string"
+    },
+    "lat": {
+      "maximum": 90,
+      "minimum": -90,
+      "title": "Lat",
+      "type": "number"
+    },
+    "lon": {
+      "maximum": 180,
+      "minimum": -180,
+      "title": "Lon",
+      "type": "number"
+    },
+    "node_id": {
+      "title": "Node Id",
+      "type": "string"
+    },
+    "sim_gain_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "estimated delay saved by signalising (s); null until computed",
+      "title": "Sim Gain S"
+    },
+    "structural_score": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Structural Score",
+      "type": "number"
+    }
+  },
+  "required": [
+    "id",
+    "node_id",
+    "lat",
+    "lon",
+    "approaches",
+    "has_signal_in_osm",
+    "structural_score"
+  ],
+  "title": "Intersection",
+  "type": "object"
+}

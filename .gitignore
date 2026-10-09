@@ -1,0 +1,24 @@
+# secrets
+.env
+.env.local
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+
+# runtime data (caches, persisted counters)
+backend/data/cache/
+backend/data/state/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

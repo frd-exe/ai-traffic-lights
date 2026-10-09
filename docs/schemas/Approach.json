@@ -1,0 +1,43 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "bearing": {
+      "description": "direction FROM the intersection TOWARD the upstream end of in_edge",
+      "exclusiveMaximum": 360,
+      "minimum": 0,
+      "title": "Bearing",
+      "type": "number"
+    },
+    "id": {
+      "description": "a_ + sha1(intersection_id:bearing_rounded_5deg)[:8]",
+      "title": "Id",
+      "type": "string"
+    },
+    "in_edge": {
+      "title": "In Edge",
+      "type": "string"
+    },
+    "lanes": {
+      "minimum": 1,
+      "title": "Lanes",
+      "type": "integer"
+    },
+    "out_edges": {
+      "description": "edges a vehicle on this approach may take (no U-turns)",
+      "items": {
+        "type": "string"
+      },
+      "title": "Out Edges",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "bearing",
+    "lanes",
+    "in_edge",
+    "out_edges"
+  ],
+  "title": "Approach",
+  "type": "object"
+}

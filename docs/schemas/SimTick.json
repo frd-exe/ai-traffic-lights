@@ -1,0 +1,410 @@
+{
+  "$defs": {
+    "ControllerStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "calls_last_min": {
+          "minimum": 0,
+          "title": "Calls Last Min",
+          "type": "integer"
+        },
+        "calls_today": {
+          "minimum": 0,
+          "title": "Calls Today",
+          "type": "integer"
+        },
+        "daily_cap": {
+          "minimum": 0,
+          "title": "Daily Cap",
+          "type": "integer"
+        },
+        "effective_controller": {
+          "enum": [
+            "gemini+max_pressure",
+            "fixed",
+            "webster",
+            "max_pressure"
+          ],
+          "title": "Effective Controller",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "since_t": {
+          "description": "sim time when this state began",
+          "minimum": 0,
+          "title": "Since T",
+          "type": "number"
+        },
+        "state": {
+          "enum": [
+            "ai_active",
+            "ai_limit_reached",
+            "ai_unavailable",
+            "ai_replay",
+            "traditional"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "effective_controller",
+        "message",
+        "since_t",
+        "calls_last_min",
+        "calls_today",
+        "daily_cap"
+      ],
+      "title": "ControllerStatus",
+      "type": "object"
+    },
+    "DataStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "calls_today": {
+          "minimum": 0,
+          "title": "Calls Today",
+          "type": "integer"
+        },
+        "daily_cap": {
+          "minimum": 0,
+          "title": "Daily Cap",
+          "type": "integer"
+        },
+        "last_update": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "when the underlying Google data was fetched",
+          "title": "Last Update"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "google_live",
+            "google_cached",
+            "google_snapshot",
+            "baseline_only"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "message",
+        "last_update",
+        "calls_today",
+        "daily_cap"
+      ],
+      "title": "DataStatus",
+      "type": "object"
+    },
+    "Explanation": {
+      "additionalProperties": false,
+      "properties": {
+        "intersection_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null = session-wide (e.g. AI fallback notice)",
+          "title": "Intersection Id"
+        },
+        "t": {
+          "minimum": 0,
+          "title": "T",
+          "type": "number"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "intersection_id",
+        "text"
+      ],
+      "title": "Explanation",
+      "type": "object"
+    },
+    "Metrics": {
+      "additionalProperties": false,
+      "description": "See CONTRACT.md 'Metric definitions'; identical in engine, experiments and UI.",
+      "properties": {
+        "avg_queue": {
+          "minimum": 0,
+          "title": "Avg Queue",
+          "type": "number"
+        },
+        "avg_wait_s": {
+          "minimum": 0,
+          "title": "Avg Wait S",
+          "type": "number"
+        },
+        "blocked_spawns": {
+          "minimum": 0,
+          "title": "Blocked Spawns",
+          "type": "integer"
+        },
+        "deadlocks": {
+          "minimum": 0,
+          "title": "Deadlocks",
+          "type": "integer"
+        },
+        "effective_controller": {
+          "enum": [
+            "gemini+max_pressure",
+            "fixed",
+            "webster",
+            "max_pressure"
+          ],
+          "title": "Effective Controller",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "fixed",
+            "webster",
+            "max_pressure",
+            "ai"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "population": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "vehicles in the metric population",
+          "title": "Population"
+        },
+        "t": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sim time the metrics refer to",
+          "title": "T"
+        },
+        "throughput_per_min": {
+          "minimum": 0,
+          "title": "Throughput Per Min",
+          "type": "number"
+        },
+        "trip_delay_s": {
+          "minimum": 0,
+          "title": "Trip Delay S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "mode",
+        "effective_controller",
+        "trip_delay_s",
+        "avg_wait_s",
+        "avg_queue",
+        "throughput_per_min",
+        "blocked_spawns",
+        "deadlocks"
+      ],
+      "title": "Metrics",
+      "type": "object"
+    },
+    "SignalState": {
+      "additionalProperties": false,
+      "properties": {
+        "color_per_approach": {
+          "additionalProperties": {
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "type": "string"
+          },
+          "title": "Color Per Approach",
+          "type": "object"
+        },
+        "intersection_id": {
+          "title": "Intersection Id",
+          "type": "string"
+        },
+        "is_transition": {
+          "description": "true during yellow / all-red",
+          "title": "Is Transition",
+          "type": "boolean"
+        },
+        "phase_id": {
+          "description": "phase being served; during a transition, the phase being switched TO",
+          "title": "Phase Id",
+          "type": "string"
+        },
+        "time_in_phase_s": {
+          "description": "seconds since this phase (or transition) began",
+          "minimum": 0,
+          "title": "Time In Phase S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "intersection_id",
+        "phase_id",
+        "color_per_approach",
+        "time_in_phase_s",
+        "is_transition"
+      ],
+      "title": "SignalState",
+      "type": "object"
+    },
+    "Vehicle": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "heading": {
+          "description": "degrees, 0 = north, clockwise",
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Heading",
+          "type": "number"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "offset_m": {
+          "description": "distance from the start of edge_id",
+          "minimum": 0,
+          "title": "Offset M",
+          "type": "number"
+        },
+        "speed": {
+          "description": "m/s",
+          "minimum": 0,
+          "title": "Speed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "edge_id",
+        "offset_m",
+        "lat",
+        "lon",
+        "heading",
+        "speed"
+      ],
+      "title": "Vehicle",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "WS /ws/sim frame, 5 Hz, latest-only (stale ticks dropped).",
+  "properties": {
+    "controller_status": {
+      "$ref": "#/$defs/ControllerStatus"
+    },
+    "data_status": {
+      "$ref": "#/$defs/DataStatus"
+    },
+    "explanations": {
+      "description": "new since the previous delivered tick",
+      "items": {
+        "$ref": "#/$defs/Explanation"
+      },
+      "title": "Explanations",
+      "type": "array"
+    },
+    "metrics": {
+      "$ref": "#/$defs/Metrics"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "signals": {
+      "items": {
+        "$ref": "#/$defs/SignalState"
+      },
+      "title": "Signals",
+      "type": "array"
+    },
+    "t": {
+      "description": "sim seconds",
+      "minimum": 0,
+      "title": "T",
+      "type": "number"
+    },
+    "type": {
+      "const": "tick",
+      "default": "tick",
+      "title": "Type",
+      "type": "string"
+    },
+    "vehicles": {
+      "items": {
+        "$ref": "#/$defs/Vehicle"
+      },
+      "title": "Vehicles",
+      "type": "array"
+    }
+  },
+  "required": [
+    "session_id",
+    "t",
+    "vehicles",
+    "signals",
+    "metrics",
+    "controller_status",
+    "data_status",
+    "explanations"
+  ],
+  "title": "SimTick",
+  "type": "object"
+}

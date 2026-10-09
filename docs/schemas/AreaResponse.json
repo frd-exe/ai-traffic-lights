@@ -1,0 +1,341 @@
+{
+  "$defs": {
+    "Approach": {
+      "additionalProperties": false,
+      "properties": {
+        "bearing": {
+          "description": "direction FROM the intersection TOWARD the upstream end of in_edge",
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Bearing",
+          "type": "number"
+        },
+        "id": {
+          "description": "a_ + sha1(intersection_id:bearing_rounded_5deg)[:8]",
+          "title": "Id",
+          "type": "string"
+        },
+        "in_edge": {
+          "title": "In Edge",
+          "type": "string"
+        },
+        "lanes": {
+          "minimum": 1,
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "out_edges": {
+          "description": "edges a vehicle on this approach may take (no U-turns)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Out Edges",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "bearing",
+        "lanes",
+        "in_edge",
+        "out_edges"
+      ],
+      "title": "Approach",
+      "type": "object"
+    },
+    "BBox": {
+      "additionalProperties": false,
+      "properties": {
+        "east": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "East",
+          "type": "number"
+        },
+        "north": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "North",
+          "type": "number"
+        },
+        "south": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "South",
+          "type": "number"
+        },
+        "west": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "West",
+          "type": "number"
+        }
+      },
+      "required": [
+        "west",
+        "south",
+        "east",
+        "north"
+      ],
+      "title": "BBox",
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "description": "Directed road segment from_node -> to_node.",
+      "properties": {
+        "from_node": {
+          "title": "From Node",
+          "type": "string"
+        },
+        "geometry": {
+          "items": {
+            "description": "[lon, lat]",
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "minItems": 2,
+          "title": "Geometry",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lanes": {
+          "minimum": 1,
+          "title": "Lanes",
+          "type": "integer"
+        },
+        "length_m": {
+          "exclusiveMinimum": 0,
+          "title": "Length M",
+          "type": "number"
+        },
+        "road_class": {
+          "enum": [
+            "motorway",
+            "trunk",
+            "primary",
+            "secondary",
+            "tertiary",
+            "unclassified",
+            "residential",
+            "living_street",
+            "service"
+          ],
+          "title": "Road Class",
+          "type": "string"
+        },
+        "speed_limit": {
+          "description": "m/s",
+          "exclusiveMinimum": 0,
+          "title": "Speed Limit",
+          "type": "number"
+        },
+        "to_node": {
+          "title": "To Node",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "from_node",
+        "to_node",
+        "geometry",
+        "length_m",
+        "speed_limit",
+        "lanes",
+        "road_class"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "Intersection": {
+      "additionalProperties": false,
+      "properties": {
+        "approaches": {
+          "items": {
+            "$ref": "#/$defs/Approach"
+          },
+          "title": "Approaches",
+          "type": "array"
+        },
+        "has_signal_in_osm": {
+          "title": "Has Signal In Osm",
+          "type": "boolean"
+        },
+        "id": {
+          "description": "i_ + sha1(lat5,lon5)[:8]",
+          "title": "Id",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "node_id": {
+          "title": "Node Id",
+          "type": "string"
+        },
+        "sim_gain_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "estimated delay saved by signalising (s); null until computed",
+          "title": "Sim Gain S"
+        },
+        "structural_score": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Structural Score",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "node_id",
+        "lat",
+        "lon",
+        "approaches",
+        "has_signal_in_osm",
+        "structural_score"
+      ],
+      "title": "Intersection",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "lat",
+        "lon"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "RoadNetwork": {
+      "additionalProperties": false,
+      "properties": {
+        "bbox": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BBox"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "entry_nodes": {
+          "description": "boundary nodes where vehicles spawn",
+          "items": {
+            "type": "string"
+          },
+          "title": "Entry Nodes",
+          "type": "array"
+        },
+        "exit_nodes": {
+          "description": "boundary nodes where vehicles leave",
+          "items": {
+            "type": "string"
+          },
+          "title": "Exit Nodes",
+          "type": "array"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "title": "Nodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "nodes",
+        "edges",
+        "entry_nodes",
+        "exit_nodes"
+      ],
+      "title": "RoadNetwork",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "area_id": {
+      "title": "Area Id",
+      "type": "string"
+    },
+    "intersections": {
+      "description": "ranked: best signal candidates first",
+      "items": {
+        "$ref": "#/$defs/Intersection"
+      },
+      "title": "Intersections",
+      "type": "array"
+    },
+    "network": {
+      "$ref": "#/$defs/RoadNetwork"
+    },
+    "recommended_ids": {
+      "description": "default selection for the UI",
+      "items": {
+        "type": "string"
+      },
+      "title": "Recommended Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "area_id",
+    "network",
+    "intersections"
+  ],
+  "title": "AreaResponse",
+  "type": "object"
+}
