@@ -69,7 +69,7 @@ def test_client_parses_schema_output_and_never_leaks_key():
 
 def test_thinking_config_per_model_family():
     c = client(lambda r: gemini_ok([]))
-    c.model = "gemini-2.5-flash"
+    c.model = "gemini-2.0-flash"  # any Gemini 2.x model uses thinkingBudget
     assert c._thinking_config() == {"thinkingConfig": {"thinkingBudget": 0}}
     c.model = "gemini-3.8-flash"
     assert c._thinking_config() == {"thinkingConfig": {"thinkingLevel": "low"}}

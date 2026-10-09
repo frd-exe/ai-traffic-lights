@@ -70,6 +70,7 @@ from backend.contract.models import (
 )
 from backend.roadnet.geo import bearing_deg
 from backend.roadnet.sim_siting import SitingCache
+from backend.static_frontend import mount_frontend
 from backend.roadnet.intersections import build_intersections
 from backend.siting.prefilter import rank
 from backend.traffic.demand import DemandStore, derive_profile, resolve, simulated_data_status, total_flow
@@ -460,3 +461,7 @@ async def ws_sim(ws: WebSocket, session_id: str, scenario: str | None = None) ->
 
         for fn in (producer, sender, receiver):
             tg.start_soon(fn)
+
+
+# Serve the built frontend on the same port (after all API/WS routes).
+mount_frontend(app)

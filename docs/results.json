@@ -1,8 +1,8 @@
 {
  "meta": {
-  "generated_at": "2026-10-09 14:50 UTC",
-  "runs": 55,
-  "wall_s": 1785.6
+  "generated_at": "2026-10-09 14:57 UTC",
+  "runs": 57,
+  "wall_s": 2173.9
  },
  "rows": [
   {
@@ -1608,6 +1608,76 @@
     "min_green": 4
    },
    "wall_s": 176.4,
+   "status": "filled",
+   "model": "gemini-3.5-flash-lite",
+   "ai_calls_ok": 30,
+   "ai_calls_failed": 0,
+   "limit_reached_at_t": null,
+   "effective_controller_end": "gemini+max_pressure"
+  },
+  {
+   "scenario": "rush",
+   "mode": "ai",
+   "seed": 2,
+   "duration_s": 600.0,
+   "signalised": [
+    "i_1c42c10c",
+    "i_27451942",
+    "i_ac9b6377"
+   ],
+   "avg_wait_s": 130.36,
+   "trip_delay_s": 166.59,
+   "exits_per_min": 37.3,
+   "throughput_last_min": 33.0,
+   "max_queue": 24,
+   "avg_queue_end": 3.53,
+   "max_avg_queue": 3.61,
+   "external_queue_end": 69,
+   "max_external_queue": 68,
+   "deadlocks": 0,
+   "blocked_spawns": 304,
+   "generated": 812,
+   "safety_overrides": {
+    "starvation": 2,
+    "transition_locked": 8,
+    "min_green": 12
+   },
+   "wall_s": 177.3,
+   "status": "filled",
+   "model": "gemini-3.5-flash-lite",
+   "ai_calls_ok": 30,
+   "ai_calls_failed": 0,
+   "limit_reached_at_t": null,
+   "effective_controller_end": "gemini+max_pressure"
+  },
+  {
+   "scenario": "rush",
+   "mode": "ai",
+   "seed": 3,
+   "duration_s": 600.0,
+   "signalised": [
+    "i_1c42c10c",
+    "i_27451942",
+    "i_ac9b6377"
+   ],
+   "avg_wait_s": 104.74,
+   "trip_delay_s": 155.85,
+   "exits_per_min": 41.2,
+   "throughput_last_min": 45.0,
+   "max_queue": 23,
+   "avg_queue_end": 2.78,
+   "max_avg_queue": 3.11,
+   "external_queue_end": 44,
+   "max_external_queue": 37,
+   "deadlocks": 0,
+   "blocked_spawns": 262,
+   "generated": 772,
+   "safety_overrides": {
+    "starvation": 4,
+    "transition_locked": 8,
+    "min_green": 8
+   },
+   "wall_s": 211.0,
    "status": "filled",
    "model": "gemini-3.5-flash-lite",
    "ai_calls_ok": 30,

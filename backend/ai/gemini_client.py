@@ -38,7 +38,8 @@ from backend.contract.models import Plan
 
 log = logging.getLogger("backend.ai")
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-# gemini-2.5-flash is no longer offered to new users (404, Oct 2026). Measured on the demo city:
+# Default: gemini-3.5-flash-lite (the 2.5 generation is no longer offered to new users, 404 in Oct 2026).
+# Measured on the demo city:
 # gemini-3.5-flash-lite 2.5 s per call; gemini-3.8-flash ~14 s (over the 8 s timeout); 3.5-flash 503 (overloaded).
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
 DEFAULT_THINKING_LEVEL = "low"  # Gemini 3 models ("minimal" is rejected by 3.x flash)

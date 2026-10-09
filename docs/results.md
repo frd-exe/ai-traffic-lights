@@ -1,6 +1,6 @@
 # Results: controller comparison (demo city)
 
-_Generated 2026-10-09 14:50 UTC by `python -m backend.experiments.compare`. Raw rows: `docs/results.json`._
+_Generated 2026-10-09 14:57 UTC by `python -m backend.experiments.compare`. Raw rows: `docs/results.json`._
 
 **Setup.** Synthetic 3×3 demo grid (`area_grid_mock`). The **same 3 junctions are signalised in every mode**: the simulation-based siting top 3 (`i_1c42c10c`, `i_27451942`, `i_ac9b6377`), which the UI also preselects; the other 6 junctions are unsignalised (priority + gap acceptance). 10 simulated minutes per run, seeds 1–3, same seed ⇒ identical demand schedule across controllers. Simulated demand per entry: low 120 / medium 200 / high 280 / rush 380 veh/h; **surge** = rush, then from t=300 s a 2× override on entry `n20`.
 
@@ -27,14 +27,14 @@ _Generated 2026-10-09 14:50 UTC by `python -m backend.experiments.compare`. Raw 
 | rush | fixed (30 s) | 3 | 138.5 ± 36.7 | 36.0 ± 6.6 | 46 | filled |
 | rush | webster | 3 | 145.7 ± 12.0 | 34.1 ± 3.1 | 46 | filled |
 | rush | max_pressure | 3 | 106.1 ± 15.3 | 43.1 ± 4.0 | 24 | filled |
-| rush | gemini | 1 | 127.3 | 37.3 | 24 | filled |
+| rush | gemini | 3 | 120.8 ± 14.0 | 38.6 ± 2.3 | 24 | filled |
 
 ## Relative to fixed timers (avg wait)
 
 - **low**: fixed 10.9 s; webster 6.9 s (-36%); max_pressure 7.0 s (-36%); gemini 7.5 s (-31%)
 - **medium**: fixed 21.6 s; webster 19.2 s (-11%); max_pressure 26.8 s (+24%); gemini 21.5 s (-0%)
 - **high**: fixed 77.8 s; webster 41.6 s (-46%); max_pressure 81.1 s (+4%); gemini 58.4 s (-25%)
-- **rush**: fixed 138.5 s; webster 145.7 s (+5%); max_pressure 106.1 s (-23%); gemini 127.3 s (-8%)
+- **rush**: fixed 138.5 s; webster 145.7 s (+5%); max_pressure 106.1 s (-23%); gemini 120.8 s (-13%)
 - **surge**: fixed 145.6 s; webster 155.5 s (+7%); max_pressure 110.3 s (-24%)
 
 ## Details (incl. surge, trip delay, saturation)
@@ -56,7 +56,7 @@ _Generated 2026-10-09 14:50 UTC by `python -m backend.experiments.compare`. Raw 
 | rush | fixed (30 s) | 3 | 171.2 ± 32.6 | 110 | 0 | filled |
 | rush | webster | 3 | 175.9 ± 11.9 | 105 | 0 | filled |
 | rush | max_pressure | 3 | 145.1 ± 10.5 | 77 | 0 | filled |
-| rush | gemini | 1 | 154.5 | 93 | 0 | filled |
+| rush | gemini | 3 | 159.0 ± 6.6 | 93 | 0 | filled |
 | surge | fixed (30 s) | 3 | 172.3 ± 29.4 | 121 | 0 | filled |
 | surge | webster | 3 | 180.9 ± 8.2 | 126 | 0 | filled |
 | surge | max_pressure | 3 | 147.5 ± 10.2 | 82 | 0 | filled |
@@ -76,6 +76,8 @@ _Generated 2026-10-09 14:50 UTC by `python -m backend.experiments.compare`. Raw 
 | high | 2 | gemini-3.5-flash-lite | 30 / 0 | 33.82 | 122.37 | -88.6 | filled |
 | high | 3 | gemini-3.5-flash-lite | 30 / 0 | 98.47 | 65.89 | +32.6 | filled |
 | rush | 1 | gemini-3.5-flash-lite | 30 / 0 | 127.35 | 120.75 | +6.6 | filled |
+| rush | 2 | gemini-3.5-flash-lite | 30 / 0 | 130.36 | 90.17 | +40.2 | filled |
+| rush | 3 | gemini-3.5-flash-lite | 30 / 0 | 104.74 | 107.5 | -2.8 | filled |
 
 ## Optional baseline: existing OSM signals + fixed timing
 
@@ -86,4 +88,4 @@ NOT RUN: not applicable on the demo city (a synthetic grid has no OSM signals).
 - n = 3 seeds; differences smaller than the sd are not meaningful.
 - Max-pressure's hysteresis (10 vehicles) and Webster's saturation flow (900 veh/h/lane) were tuned on seed 1 with all 9 junctions signalised; seed 1 is not out-of-sample.
 - Demand is simulated (no real traffic data); results are relative to this model, not measurements.
-- Rows: 55; wall time of the last invocation 1785.6 s.
+- Rows: 57; wall time of the last invocation 2173.9 s.

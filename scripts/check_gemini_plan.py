@@ -51,7 +51,7 @@ def main() -> int:
         print({"limit": "Quota/rate limit: wait, or check your plan in Google AI Studio.",
                "invalid_key": "Check GEMINI_API_KEY in .env (python scripts/check_keys.py).",
                "daily_cap": "Our GEMINI_DAILY_CAP is used up: POST /api/ai/reset or raise the cap.",
-               }.get(e.kind, "Network/model problem: retry; try GEMINI_MODEL=gemini-2.5-flash."))
+               }.get(e.kind, "Network/model problem: retry; try GEMINI_MODEL=gemini-3.5-flash-lite."))
         return 1
     print(f"OK: {len(plans)} plan(s) from {client.model} in {time.perf_counter() - t0:.1f} s "
           f"(calls today: {client.usage.calls_today()}/{client.daily_cap})")

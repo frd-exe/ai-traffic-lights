@@ -46,8 +46,9 @@ from backend.contract.models import (
     SitingResult,
 )
 from backend.geocode import DEFAULT_URL, Geocoder
-from backend.roadnet.sim_siting import SitingCache, apply_to_area, run_siting
+from backend.roadnet.sim_siting import SitingCache, apply_to_area, run_siting, siting_top
 from backend.sessions import SessionManager
+from backend.static_frontend import mount_frontend
 from backend.traffic.demand import DemandStore, resolve, simulated_data_status
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,6 +80,7 @@ class Settings:
     gemini_transport: httpx.AsyncBaseTransport | None = None
     siting_committed_dir: Path | None = None  # default backend/data/siting
     siting_workers: int | None = None
+    serve_frontend: bool = True  # mount frontend/dist at / when it has been built
 
 
 def _configure_logging() -> None:
@@ -118,8 +120,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def with_siting(area: AreaResponse) -> AreaResponse:
         """Fill sim_gain_s from a cached siting result (precomputed for the demo area)."""
         res = siting_cache.get(area.area_id, DEFAULT_SITING_SEED, DEFAULT_SITING_LEVEL)
-        if res is None or all(i.sim_gain_s is not None for i in area.intersections if i.id in res.gains):
+        if res is None:
             return area
+        gains = {i.id: i.sim_gain_s for i in area.intersections if i.id in res.gains}
+        if gains == res.gains and list(area.recommended_ids) == siting_top(res):
+            return area  # already up to date (a newer siting result must replace a stale cached one)
         area = apply_to_area(area, res)
         areas.update(area)
         return area
@@ -288,8 +293,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tg.start_soon(sender)
             tg.start_soon(receiver)
 
-    log.info("backend ready (state=%s, sample=%s, grid area=%s, gemini model=%s, fake_fail=%s)", s.state_dir,
-             "present" if s.sample_path.exists() else "absent", GRID_AREA_ID, client.model, client.fake_fail)
+    served = mount_frontend(app) if s.serve_frontend else False
+    log.info("backend ready (state=%s, sample=%s, grid area=%s, gemini model=%s, fake_fail=%s, frontend=%s)",
+             s.state_dir, "present" if s.sample_path.exists() else "absent", GRID_AREA_ID, client.model,
+             client.fake_fail, "served" if served else "not served")
     return app
 
 

@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "gen:types": "node scripts/gen-types.mjs"
+    "gen:types": "node scripts/gen-types.mjs",
+    "test": "playwright test"
   },
   "dependencies": {
     "maplibre-gl": "6.13.0",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "^1.64.0",
     "@types/geojson": "7946.0.16",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",
