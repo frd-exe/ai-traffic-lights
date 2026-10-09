@@ -9,10 +9,24 @@
           "title": "Arrival Rate",
           "type": "number"
         },
+        "downstream_vehicles": {
+          "default": 0.0,
+          "description": "mean vehicle count on this approach's out-edges (v0.3.0; max-pressure downstream count)",
+          "minimum": 0,
+          "title": "Downstream Vehicles",
+          "type": "number"
+        },
         "queue": {
           "description": "stopped vehicles within 50 m of stop line",
           "minimum": 0,
           "title": "Queue",
+          "type": "integer"
+        },
+        "vehicles": {
+          "default": 0,
+          "description": "all vehicles on the in-edge, moving or stopped (v0.3.0; max-pressure upstream count)",
+          "minimum": 0,
+          "title": "Vehicles",
           "type": "integer"
         },
         "wait_s": {

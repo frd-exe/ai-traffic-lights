@@ -10,9 +10,12 @@
    ├─ siting/      structural pre-filter score (docs/SITING.md)
    ├─ traffic/     simulated demand: level × multiplier × per-entry overrides → frozen DemandProfile
    ├─ geocode.py   Nominatim proxy (1 req/s, cache)
-   ├─ sim/         SimEngine (0.1 s step), phases.py, unsignalised priority, metrics      [Codex, in progress]
-   ├─ control/     fixed · webster · max_pressure · gemini+max_pressure (plan executor)   [todo]
-   ├─ ai/          Gemini supervisor, quota/failure tracking, fallback + probe            [todo]
+   ├─ sim/         SimEngine (0.1 s step), phases.py, movement conflicts, unsignalised priority, metrics
+   ├─ control/     fixed · webster · max_pressure · ai_gemini (plan executor + fallback) · safety · runner
+   ├─ ai/          Gemini client (budget, rate limit, error classes, fake failures) · record/replay
+   ├─ sessions.py  live sessions: worker-thread stepping, latest-only ticks, async AI calls
+   ├─ experiments/ compare.py → docs/results.md
+   ├─ roadnet/sim_siting.py  simulation-based siting (multiprocessing, cached)
    └─ contract/    models.py · constants.py · helpers.py · interfaces.py   ← everyone imports this
 ```
 

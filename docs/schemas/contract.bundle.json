@@ -83,10 +83,24 @@
           "title": "Arrival Rate",
           "type": "number"
         },
+        "downstream_vehicles": {
+          "default": 0.0,
+          "description": "mean vehicle count on this approach's out-edges (v0.3.0; max-pressure downstream count)",
+          "minimum": 0,
+          "title": "Downstream Vehicles",
+          "type": "number"
+        },
         "queue": {
           "description": "stopped vehicles within 50 m of stop line",
           "minimum": 0,
           "title": "Queue",
+          "type": "integer"
+        },
+        "vehicles": {
+          "default": 0,
+          "description": "all vehicles on the in-edge, moving or stopped (v0.3.0; max-pressure upstream count)",
+          "minimum": 0,
+          "title": "Vehicles",
           "type": "integer"
         },
         "wait_s": {
@@ -780,7 +794,7 @@
       "additionalProperties": false,
       "properties": {
         "contract_version": {
-          "default": "0.2.0",
+          "default": "0.3.0",
           "title": "Contract Version",
           "type": "string"
         },
@@ -1516,6 +1530,113 @@
       "title": "SimTick",
       "type": "object"
     },
+    "SitingResult": {
+      "additionalProperties": false,
+      "description": "Simulation-based siting (v0.3.0): POST/GET /api/area/{area_id}/refine.",
+      "properties": {
+        "area_id": {
+          "title": "Area Id",
+          "type": "string"
+        },
+        "baseline_wait_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "avg_wait_s with all candidates unsignalised",
+          "title": "Baseline Wait S"
+        },
+        "candidates": {
+          "description": "top structural candidates evaluated",
+          "items": {
+            "type": "string"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "demand_level": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "rush"
+          ],
+          "title": "Demand Level",
+          "type": "string"
+        },
+        "final_wait_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Final Wait S"
+        },
+        "gains": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "sim_gain_s per candidate (s of avg_wait_s saved)",
+          "title": "Gains",
+          "type": "object"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        },
+        "order": {
+          "description": "signals added greedily, most useful first",
+          "items": {
+            "type": "string"
+          },
+          "title": "Order",
+          "type": "array"
+        },
+        "runtime_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Runtime S"
+        },
+        "seed": {
+          "title": "Seed",
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "done",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "area_id",
+        "seed",
+        "status",
+        "demand_level"
+      ],
+      "title": "SitingResult",
+      "type": "object"
+    },
     "Vehicle": {
       "additionalProperties": false,
       "properties": {
@@ -1574,7 +1695,7 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "AI traffic lights contract v0.2.0 (generated, do not edit)",
+  "description": "AI traffic lights contract v0.3.0 (generated, do not edit)",
   "properties": {
     "AiResetResponse": {
       "$ref": "#/$defs/AiResetResponse"
@@ -1683,6 +1804,9 @@
     },
     "SimTick": {
       "$ref": "#/$defs/SimTick"
+    },
+    "SitingResult": {
+      "$ref": "#/$defs/SitingResult"
     },
     "Vehicle": {
       "$ref": "#/$defs/Vehicle"

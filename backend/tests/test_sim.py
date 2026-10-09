@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from backend.contract.constants import LEVEL_FLOW_VEH_PER_H as F
 from backend.contract.interfaces import Controller, SimEngine as SimProtocol
 from backend.contract.models import DemandEntry, DemandProfile, Phase
 from backend.control.fixed import FixedController
@@ -15,7 +16,10 @@ from backend.sim.phases import derive_phases
 from backend.sim.signals import Signal
 
 
-def profile(source="baseline_only", level="medium", scale=1):
+def profile(source="baseline_only", level="medium", scale=None):
+    # Contract 0.2.0: scale is authoritative (flow = scale * medium flow); default it from the level.
+    from backend.contract.constants import LEVEL_FLOW_VEH_PER_H
+    scale = LEVEL_FLOW_VEH_PER_H[level] / LEVEL_FLOW_VEH_PER_H["medium"] if scale is None else scale
     return DemandProfile(id="test-profile", source=source, level=level,
         created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         entries=[DemandEntry(entry_node_id=n, scale=scale) for n in load_network().entry_nodes])
@@ -74,20 +78,45 @@ def test_scale_and_baseline_level():
     for a, b in zip(lo_entry[:20], hi_entry[:20]):
         assert a.time == pytest.approx(b.time * 3)
         assert (a.destination, a.speed_factor) == (b.destination, b.speed_factor)
-    baseline = Demand(load_network(), profile(level="rush", scale=0.01), 1)
-    assert all(rate == 700 / 3600 for rate in baseline.rates.values())
+    # Contract 0.2.0: scale is authoritative for every source (flow = scale * medium flow);
+    # traffic.demand.build_profile folds level x multiplier x override into scale.
+    from backend.traffic.demand import build_profile
+    rush = build_profile(area_id="a", entry_nodes=list(load_network().entry_nodes), level="rush", multiplier=1.5)
+    baseline = Demand(load_network(), rush, 1)
+    assert all(rate == pytest.approx(F["rush"] * 1.5 / 3600) for rate in baseline.rates.values())
 
 
-def test_profile_is_frozen_copy_and_set_demand():
-    p = profile("google_snapshot", scale=1)
+def test_profile_is_frozen_copy_and_mid_run_set_demand():
+    p = profile("baseline_only", scale=1)
     e = engine(demand=p)
-    p.entries[0].scale = 10
-    assert next(iter(e.demand.rates.values())) == 300 / 3600
-    e.set_demand("low")
-    assert all(rate == 150 / 3600 for rate in e.demand.rates.values())
-    e.step(0.1, {})
-    with pytest.raises(RuntimeError):
-        e.set_demand("high")
+    p.entries[0].scale = 10  # the engine holds a copy
+    assert next(iter(e.demand.rates.values())) == pytest.approx(F["medium"] / 3600)
+    run(e, 30)
+    child = e.set_demand("low", at_t=40)
+    assert child.parent_id == p.id and child.level == "low"
+    run(e, 9.9)
+    assert all(rate == pytest.approx(F["medium"] / 3600) for rate in e.demand.rates.values())  # not yet
+    run(e, 0.2)
+    assert all(rate == pytest.approx(F["low"] / 3600) for rate in e.demand.rates.values())
+    with pytest.raises(ValueError):
+        e.set_demand("high", at_t=5)  # in the past
+    later = e.set_demand(multiplier=2.0)  # keeps level low, applies now
+    run(e, 0.2)
+    assert later.level == "low"
+    assert all(rate == pytest.approx(F["low"] * 2.0 / 3600) for rate in e.demand.rates.values())
+
+
+def test_mid_run_change_keeps_schedules_identical_across_controllers():
+    a, b = engine(), engine(selected=False)
+    run(a, 20, FixedController(10))
+    run(b, 20)
+    a.set_demand("rush", multiplier=2.0, at_t=30)
+    b.set_demand("rush", multiplier=2.0, at_t=30)
+    run(a, 60, WebsterController(a))
+    run(b, 60)
+    assert a.demand_schedule_digest() == b.demand_schedule_digest()
+    assert a.demand.schedule == b.demand.schedule
+    assert any(arr.time > 30 for arr in a.demand.schedule)
 
 
 def test_geometry_four_three_five_arms():
@@ -271,15 +300,57 @@ def test_unsignalized_right_hand_rule():
     assert e._permission(cars[1], e._lanes())
 
 
-def test_reservations_serialize_conflicting_turns():
+def test_reservations_serialize_conflicting_movements():
+    """Movement-level conflicts: any two CONFLICTING crossings at a node are >= 2 s apart."""
+    for selected in (True, False):  # signalised and fully unsignalised (priority + gap acceptance)
+        e = engine(selected=selected, demand=profile(level="rush"))
+        run(e, 180, FixedController(7))
+        moves = list(e.crossing_moves)
+        assert len(moves) > 100
+        for k, (t1, n1, i1, o1) in enumerate(moves):
+            for t2, n2, i2, o2 in moves[k + 1:]:
+                if t2 - t1 >= 2 - 1e-8:
+                    break
+                if n1 == n2:
+                    assert not e.conflicts((i1, o1), (i2, o2)), (t1, t2, n1, i1, o1, i2, o2)
+        assert all(color in {"green", "unsignalized"} for _, _, _, color in e.crossings)
+
+
+def test_conflict_rules():
     e = engine()
-    run(e, 120, FixedController(7))
-    by_node = {}
-    for t, _, edge_id, color in e.crossings:
-        node = e.edges[edge_id].to_node
-        assert t - by_node.get(node, -100) >= 2 - 1e-8
-        by_node[node] = t
-        assert color in {"green", "unsignalized"}
+    ix = next(i for i in e.intersections if len(i.approaches) == 4)
+    by_bearing = {round(a.bearing) % 360: a for a in ix.approaches}
+    south, north, west = by_bearing[180], by_bearing[0], by_bearing[270]
+
+    def out(approach_in, turn):
+        return next(o for o in approach_in.out_edges if e._turn(approach_in.in_edge, o) == turn)
+
+    s_straight, n_straight = (south.in_edge, out(south, "straight")), (north.in_edge, out(north, "straight"))
+    s_left, w_straight = (south.in_edge, out(south, "left")), (west.in_edge, out(west, "straight"))
+    s_right = (south.in_edge, out(south, "right"))
+    assert not e.conflicts(s_straight, n_straight)  # opposing throughs flow together
+    assert not e.conflicts(s_straight, s_left)  # same approach
+    assert e.conflicts(s_left, n_straight)  # permissive left yields to opposing through
+    assert e.conflicts(s_straight, w_straight)  # crossing paths
+    assert s_right[1] == w_straight[1] and e.conflicts(s_right, w_straight)  # merge into the same exit
+
+
+def test_opposing_through_traffic_flows_together():
+    """Capacity regression guard: with movement-level reservations a 4-way junction must
+    pass far more than one vehicle per 2 s under heavy demand."""
+    e = engine(demand=profile(level="rush"))
+    run(e, 300, FixedController())
+    moves = list(e.crossing_moves)
+    concurrent = 0
+    for k, (t1, n1, i1, o1) in enumerate(moves):
+        for t2, n2, i2, o2 in moves[k + 1:]:
+            if t2 - t1 >= 2 - 1e-8:
+                break
+            if n1 == n2 and i1 != i2:
+                assert not e.conflicts((i1, o1), (i2, o2))
+                concurrent += 1
+    # Under the old whole-junction lock this was exactly 0.
+    assert concurrent > 50
 
 
 def test_five_singleton_phases_do_not_starve():

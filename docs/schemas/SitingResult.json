@@ -1,0 +1,107 @@
+{
+  "additionalProperties": false,
+  "description": "Simulation-based siting (v0.3.0): POST/GET /api/area/{area_id}/refine.",
+  "properties": {
+    "area_id": {
+      "title": "Area Id",
+      "type": "string"
+    },
+    "baseline_wait_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "avg_wait_s with all candidates unsignalised",
+      "title": "Baseline Wait S"
+    },
+    "candidates": {
+      "description": "top structural candidates evaluated",
+      "items": {
+        "type": "string"
+      },
+      "title": "Candidates",
+      "type": "array"
+    },
+    "demand_level": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "rush"
+      ],
+      "title": "Demand Level",
+      "type": "string"
+    },
+    "final_wait_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Final Wait S"
+    },
+    "gains": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "sim_gain_s per candidate (s of avg_wait_s saved)",
+      "title": "Gains",
+      "type": "object"
+    },
+    "message": {
+      "default": "",
+      "title": "Message",
+      "type": "string"
+    },
+    "order": {
+      "description": "signals added greedily, most useful first",
+      "items": {
+        "type": "string"
+      },
+      "title": "Order",
+      "type": "array"
+    },
+    "runtime_s": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runtime S"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "done",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "area_id",
+    "seed",
+    "status",
+    "demand_level"
+  ],
+  "title": "SitingResult",
+  "type": "object"
+}

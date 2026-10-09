@@ -44,8 +44,9 @@ def test_multiplier_scales_every_entry():
 def test_entry_overrides_apply_per_entry():
     p = _p(level="medium", multiplier=1.5, entry_overrides={"n10": 2.0})
     f = entry_flows(p)
-    assert f["n10"] == pytest.approx(300 * 1.5 * 2.0)
-    assert f["n01"] == pytest.approx(300 * 1.5)
+    medium = LEVEL_FLOW_VEH_PER_H["medium"]
+    assert f["n10"] == pytest.approx(medium * 1.5 * 2.0)
+    assert f["n01"] == pytest.approx(medium * 1.5)
     assert p.entry_overrides == {"n10": 2.0}
 
 

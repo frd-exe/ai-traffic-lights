@@ -1,0 +1,33 @@
+{
+ "area_id": "area_grid_mock",
+ "baseline_wait_s": 72.99,
+ "candidates": [
+  "i_1c42c10c",
+  "i_d42e7de0",
+  "i_27451942",
+  "i_1c36a520",
+  "i_4024a1db",
+  "i_728587b5",
+  "i_fc7c9048",
+  "i_ac9b6377"
+ ],
+ "demand_level": "rush",
+ "final_wait_s": 62.18,
+ "gains": {
+  "i_1c36a520": -0.52,
+  "i_1c42c10c": -1.93,
+  "i_27451942": 0.44,
+  "i_4024a1db": 10.81,
+  "i_728587b5": 0.73,
+  "i_ac9b6377": 1.64,
+  "i_d42e7de0": 0.29,
+  "i_fc7c9048": -1.88
+ },
+ "message": "1 signal(s) chosen from 8 candidates; 8 sim-min per run pair, 8 worker(s)",
+ "order": [
+  "i_4024a1db"
+ ],
+ "runtime_s": 14.3,
+ "seed": 42,
+ "status": "done"
+}

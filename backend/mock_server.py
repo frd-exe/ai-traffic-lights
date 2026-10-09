@@ -13,7 +13,6 @@ The switch time is MOCK_SWITCH_AFTER_S (env, default 20).
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import logging
@@ -24,6 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Literal
 
+import anyio
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 
 from backend.api_common import ApiError, install_error_handlers
@@ -65,14 +65,17 @@ from backend.contract.models import (
     SimStopRequest,
     SimStopResponse,
     SimTick,
+    SitingResult,
     Vehicle,
 )
 from backend.roadnet.geo import bearing_deg
+from backend.roadnet.sim_siting import SitingCache
 from backend.roadnet.intersections import build_intersections
 from backend.siting.prefilter import rank
 from backend.traffic.demand import DemandStore, derive_profile, resolve, simulated_data_status, total_flow
 
 log = logging.getLogger("mock_server")
+DATA_DIR = __import__("pathlib").Path(__file__).resolve().parent / "data"
 Scenario = Literal["none", "ai_limit", "ai_replay"]
 SCENARIOS = ("none", "ai_limit", "ai_replay")
 GEMINI_DAILY_CAP = 500
@@ -91,12 +94,9 @@ def resolve_scenario(explicit: str | None) -> Scenario:
 
 # ------------------------------------------------------------------ canned area (real code on the grid)
 def _load_grid_area() -> AreaResponse:
-    from pathlib import Path
-
     from backend.contract.models import RoadNetwork
 
-    net = RoadNetwork.model_validate_json(
-        (Path(__file__).resolve().parent / "data" / "grid_network.json").read_text("utf-8"))
+    net = RoadNetwork.model_validate_json((DATA_DIR / "grid_network.json").read_text("utf-8"))
     ranked, recommended = rank(net, build_intersections(net))
     return AreaResponse(area_id=GRID_AREA_ID, source="synthetic_grid", network=net,
                         intersections=ranked, recommended_ids=recommended)
@@ -307,6 +307,25 @@ def get_area(area_id: str) -> AreaResponse:
     return AREA
 
 
+def _mock_siting(area_id: str) -> SitingResult:
+    if area_id != AREA.area_id:
+        raise ApiError(404, "unknown_area", f"area {area_id} not found")
+    cached = SitingCache(DATA_DIR / "state" / "siting").get(AREA.area_id, 42, "rush")
+    if cached is None:
+        raise ApiError(404, "siting_not_started", "no precomputed siting (run scripts/precompute_siting.py)")
+    return cached
+
+
+@app.post("/api/area/{area_id}/refine", response_model=SitingResult)
+def refine(area_id: str) -> SitingResult:
+    return _mock_siting(area_id)
+
+
+@app.get("/api/area/{area_id}/refine", response_model=SitingResult)
+def refine_status(area_id: str) -> SitingResult:
+    return _mock_siting(area_id)
+
+
 @app.get("/api/geocode", response_model=GeocodeResponse)
 def geocode(q: str = Query(min_length=1)) -> GeocodeResponse:
     return GeocodeResponse(results=[
@@ -407,36 +426,37 @@ async def ws_sim(ws: WebSocket, session_id: str, scenario: str | None = None) ->
             return
 
     latest: dict[str, float] = {}
-    ready = asyncio.Event()
+    ready = anyio.Event()
+    slot = {"ready": ready}
 
-    async def producer() -> None:  # samples sim time at WS_HZ; overwrites the slot (latest only)
-        while True:
-            latest["t"] = s.t()
-            ready.set()
-            await asyncio.sleep(1 / WS_HZ)
+    # anyio task group (Starlette is anyio-based): cancellation stays inside the handler's scope.
+    async with anyio.create_task_group() as tg:
+        async def producer() -> None:  # samples sim time at WS_HZ; overwrites the slot (latest only)
+            while True:
+                latest["t"] = s.t()
+                slot["ready"].set()
+                await anyio.sleep(1 / WS_HZ)
 
-    async def sender() -> None:
-        last_sent = -1.0
-        while True:
-            await ready.wait()
-            ready.clear()
-            t = latest["t"]
-            if t <= last_sent and s.stopped_at_t is not None:
-                await ws.close(code=1000)
-                return
-            await ws.send_text(build_tick(s, t, last_sent).model_dump_json())
-            last_sent = t
+        async def sender() -> None:
+            last_sent = -1.0
+            while True:
+                await slot["ready"].wait()
+                slot["ready"] = anyio.Event()
+                t = latest["t"]
+                if t <= last_sent and s.stopped_at_t is not None:
+                    await ws.close(code=1000)
+                    tg.cancel_scope.cancel()
+                    return
+                await ws.send_text(build_tick(s, t, last_sent).model_dump_json())
+                last_sent = t
 
-    async def receiver() -> None:
-        while True:
-            await ws.receive_text()
+        async def receiver() -> None:
+            try:
+                while True:
+                    await ws.receive_text()
+            except WebSocketDisconnect:
+                pass
+            tg.cancel_scope.cancel()
 
-    tasks = [asyncio.create_task(c()) for c in (producer, sender, receiver)]
-    try:
-        await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-    except WebSocketDisconnect:
-        pass
-    finally:
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
+        for fn in (producer, sender, receiver):
+            tg.start_soon(fn)

@@ -20,6 +20,7 @@ from backend.contract.models import (
     SimStartResponse,
     SimStopResponse,
     SimTick,
+    SitingResult,
 )
 
 BBOX = {"west": 2.16, "south": 41.385, "east": 2.17, "north": 41.395}
@@ -56,6 +57,12 @@ def test_area_is_synthetic_grid(client):
         again = AreaResponse.model_validate(client.get(path).json())
         assert again == area
     ErrorResponse.model_validate(client.get("/api/area/ar_nope").json())
+
+
+def test_refine_serves_precomputed_siting(client):
+    for r in (client.post(f"/api/area/{GRID_AREA_ID}/refine"), client.get(f"/api/area/{GRID_AREA_ID}/refine")):
+        res = SitingResult.model_validate(r.json())
+        assert res.status == "done" and res.area_id == GRID_AREA_ID and res.gains
 
 
 def test_geocode(client):

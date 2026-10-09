@@ -6,9 +6,9 @@ controls the lights. Compare against a fixed-timer baseline side by side. Demand
 (levels, a multiplier and per-entry overrides; no external traffic data). If the AI limit is
 reached, signals revert to fixed timers and the UI says so.
 
-> Status: contract 0.2.0. **Real backend part 1** (areas, OSM parser, siting pre-filter, demand,
-> geocode) + **mock backend** (full UI flow incl. a fake simulation) + frontend shell.
-> The simulation engine (`backend/sim/`) is in progress.
+> Status: contract 0.3.0. **Real backend** (areas, OSM parser, structural + simulation-based siting,
+> demand, geocode, headless engine, fixed/Webster/max-pressure/Gemini controllers with safety layer and
+> AI-limit fallback, live sessions over WebSocket) + **mock backend** + frontend shell (full UI: Codex).
 
 ## Requirements
 
@@ -19,7 +19,7 @@ Python 3.11+, Node.js 20+, Git.
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
-python -m pip install -r backend/requirements.txt
+python -m pip install -r backend/requirements.txt -r backend/sim/requirements.txt
 cd frontend && npm ci && cd ..
 cp .env.example .env    # then add your keys (Windows: copy .env.example .env)
 ```
@@ -29,7 +29,7 @@ cp .env.example .env    # then add your keys (Windows: copy .env.example .env)
 ```bash
 python run_demo.py                       # mock backend :8000 + frontend http://localhost:5173
 python run_demo.py --scenario ai_limit   # also: ai_replay (or pick in the UI)
-python run_demo.py --real                # real backend part 1 (areas/demand/geocode; no simulation yet)
+python run_demo.py --real                # real backend + real simulation (AI mode needs GEMINI_API_KEY)
 python -m uvicorn backend.app:app --port 8000   # real backend alone
 ```
 
@@ -44,6 +44,16 @@ python scripts/fetch_sample_area.py --offline-check
 
 If Overpass keeps failing (504s are common), wait and re-run (partial results are cached), use a
 smaller box, or just keep the demo city.
+
+## Experiments and AI
+
+```bash
+python -m backend.experiments.compare --skip-ai        # fixed / webster / max_pressure -> docs/results.md
+python -m backend.experiments.compare --only-ai --ai-pace 10   # add the AI rows (uses Gemini)
+python scripts/check_gemini_plan.py                    # one live Gemini call, prints the plans
+python scripts/precompute_siting.py                    # simulation-based siting for the demo city
+python -m scripts.benchmark_sim --seconds 60 --vehicles 500 --maintain
+```
 
 ## Checks
 

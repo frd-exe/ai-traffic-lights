@@ -1,8 +1,13 @@
 """IDM on directed per-edge lane queues, no server or wall-clock dependencies.
 
-Cars are 4.5m with 2m minimum bumper gap. Lanes do not change. A junction
-reservation serializes all crossing paths (including permissive left turns);
-downstream space is reserved before crossing, preventing junction overlap.
+Cars are 4.5m with 2m minimum bumper gap. Lanes do not change. Junction
+reservations are per MOVEMENT (in-edge -> out-edge): a crossing blocks, for
+RESERVATION_S, every movement that conflicts with it. Compatible (may cross
+together): movements from the same in-edge (car following is handled by IDM),
+and opposing non-left movements that don't share an exit. Everything else
+(crossing paths, permissive left turns vs. opposing traffic, merges into the
+same out-edge) is serialized. Downstream space is reserved before crossing,
+preventing junction overlap.
 """
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass
@@ -26,6 +31,8 @@ from .signals import Signal
 CAR_LENGTH = 4.5
 MIN_GAP = 2.0
 SPACING = CAR_LENGTH + MIN_GAP
+RESERVATION_S = 2.0  # a crossing blocks conflicting movements at the node for this long
+OPPOSING_TOLERANCE_DEG = 30.0
 ROAD_PRIORITY = {name: rank for rank, name in enumerate(
     ["motorway", "trunk", "primary", "secondary", "tertiary", "unclassified",
      "residential", "living_street", "service"])}
@@ -74,7 +81,8 @@ class SimEngine:
         self.external = defaultdict(deque)
         self.finished = deque()
         self.arrivals = defaultdict(deque)
-        self.reservations = {}  # node -> (clearance expiry, last in-edge)
+        self.reservations = {}  # node -> [(expiry, in_edge, out_edge)] active movement reservations
+        self.crossing_moves = deque(maxlen=10000)  # (time, node, in_edge, out_edge) for audits/tests
         self.blocked_spawns = 0
         self.deadlocks = 0
         self.generated = 0
@@ -103,6 +111,44 @@ class SimEngine:
             return None
         space, minus_lane = max(options)
         return -minus_lane, max(0.0, space)
+
+    # ------------------------------------------------------------------ movement conflicts
+    def _heading(self, edge_id, at_end):
+        key = (edge_id, at_end)
+        cache = self.__dict__.setdefault("_heading_cache", {})
+        if key not in cache:
+            g = self.edges[edge_id].geometry
+            (ax, ay), (bx, by) = (g[-2], g[-1]) if at_end else (g[0], g[1])
+            cache[key] = math.degrees(math.atan2((bx - ax) * math.cos(math.radians(ay)), by - ay)) % 360
+        return cache[key]
+
+    def _turn(self, in_edge, out_edge):
+        """'straight' | 'right' | 'left' (right-hand traffic; U-turns count as left)."""
+        delta = (self._heading(out_edge, False) - self._heading(in_edge, True)) % 360
+        if delta <= 30 or delta >= 330:
+            return "straight"
+        if delta < 160:
+            return "right"
+        return "left"
+
+    def conflicts(self, a, b):
+        """Do movements a=(in_edge, out_edge) and b conflict inside the junction?"""
+        (ai, ao), (bi, bo) = a, b
+        if ai == bi:
+            return False  # same approach: following / parallel lanes
+        if ao is None or bo is None:
+            return False  # leaving the network at a boundary node
+        if ao == bo:
+            return True  # merge into the same exit
+        diff = abs(((self._heading(ai, True) - self._heading(bi, True)) % 360) - 180)
+        opposing = diff <= OPPOSING_TOLERANCE_DEG
+        if opposing and self._turn(ai, ao) != "left" and self._turn(bi, bo) != "left":
+            return False
+        return True
+
+    def _blocked_by_reservation(self, node, movement):
+        return any(expiry > self.t + 1e-9 and self.conflicts(movement, (ri, ro))
+                   for expiry, ri, ro in self.reservations.get(node, ()))
 
     def _record_arrival(self, car):
         if car.edge in self.approach_map:
@@ -142,8 +188,8 @@ class SimEngine:
             signal = self.signal_map.get(intersection.id)
             if signal and (signal.stage != "green" or approach.id not in signal.green_ids()):
                 return False
-        reservation = self.reservations.get(edge.to_node)
-        if reservation and reservation[0] > self.t + 1e-9:
+        out_edge = car.route[car.index + 1] if car.index + 1 < len(car.route) else None
+        if self._blocked_by_reservation(edge.to_node, (car.edge, out_edge)):
             return False
         if car.index + 1 < len(car.route) and self._space(car.route[car.index + 1], lanes) is None:
             return False
@@ -236,7 +282,11 @@ class SimEngine:
                         if intersection.id in self.signal_map:
                             color = self.signal_map[intersection.id].state(self.t).color_per_approach[approach.id]
                     self.crossings.append((self.t, car.id, car.edge, color))
-                    self.reservations[edge.to_node] = (self.t + 2.0, car.edge)
+                    out_edge = car.route[car.index + 1] if car.index + 1 < len(car.route) else None
+                    self.crossing_moves.append((self.t, edge.to_node, car.edge, out_edge))
+                    active = [r for r in self.reservations.get(edge.to_node, []) if r[0] > self.t + 1e-9]
+                    active.append((self.t + RESERVATION_S, car.edge, out_edge))
+                    self.reservations[edge.to_node] = active
                     current_queue.remove(car)
                     if car.index + 1 == len(car.route):
                         self._finish(car, self.t + dt)
@@ -314,23 +364,35 @@ class SimEngine:
                     self._teleport(min(cycle, key=lambda c: (c.born, c.id)))
                     return
 
-    def _approach_stats(self, approach):
+    def _cars_by_edge(self):
+        by_edge = defaultdict(list)
+        for c in self.cars.values():
+            by_edge[c.edge].append(c)
+        return by_edge
+
+    def _approach_stats(self, approach, by_edge=None):
+        by_edge = self._cars_by_edge() if by_edge is None else by_edge
         edge = self.edges[approach.in_edge]
-        cars = [c for c in self.cars.values() if c.edge == edge.id]
+        cars = by_edge.get(edge.id, [])
         stopped = [c for c in cars if c.speed < STOPPED_SPEED_MPS]
+        outs = approach.out_edges
         return ApproachObservation(queue=sum(edge.length_m - c.x <= QUEUE_DISTANCE_M for c in stopped),
                                    wait_s=max((c.stopped for c in stopped), default=0.0),
-                                   arrival_rate=len(self.arrivals[approach.id]) / 60)
+                                   arrival_rate=len(self.arrivals[approach.id]) / 60,
+                                   vehicles=len(cars),
+                                   downstream_vehicles=(sum(len(by_edge.get(o, [])) for o in outs) / len(outs))
+                                   if outs else 0.0)
 
     def observe(self):
         states = {}
+        by_edge = self._cars_by_edge()
         for i in self.intersections:
             if i.id not in self.signal_map:
                 continue
             state = self.signal_map[i.id].state(self.t)
             states[i.id] = IntersectionObservation(phases=self.phases[i.id], current_phase=state.phase_id,
                 time_in_phase_s=state.time_in_phase_s, is_transition=state.is_transition,
-                approaches={a.id: self._approach_stats(a) for a in i.approaches})
+                approaches={a.id: self._approach_stats(a, by_edge) for a in i.approaches})
         return Observation(t=self.t, intersections=states)
 
     def signals(self):
@@ -364,7 +426,8 @@ class SimEngine:
         wait = sum(c.wait for c in population) / n if n else 0.0
         delay = max(0.0, sum((c.finished if c.finished is not None else self.t) - c.born - c.free_flow
                             for c in population) / n) if n else 0.0
-        queues = [self._approach_stats(a).queue for i in self.intersections for a in i.approaches]
+        by_edge = self._cars_by_edge()
+        queues = [self._approach_stats(a, by_edge).queue for i in self.intersections for a in i.approaches]
         # Teleports are retained in the metric population, but never throughput.
         throughput = sum(c.finished > self.t - THROUGHPUT_WINDOW_S and not c.teleported
                          for c in self.finished)
@@ -392,13 +455,25 @@ class SimEngine:
         """Hash scheduled arrivals through current simulation time (compare equal t)."""
         return self.demand.digest()
 
-    def set_demand(self, level):
-        """Testing only, before first step; a running compare profile is immutable."""
-        if self.t or self.generated:
-            raise RuntimeError("set_demand is allowed only before the first step")
-        from backend.contract.constants import LEVEL_FLOW_VEH_PER_H
-        if level not in LEVEL_FLOW_VEH_PER_H:
-            raise ValueError("unknown demand level")
-        profile = self.demand.profile.model_copy(update={"source": "baseline_only", "level": level})
-        # Preserve original seed sequence by saving it on initial construction.
-        self.demand = Demand(self.network, profile, self.seed)
+    def latest_profile(self):
+        """The profile in force after every change scheduled so far."""
+        if self.demand.changes:
+            return max(self.demand.changes, key=lambda c: (c[0], c[1]))[2]
+        return self.demand.profile
+
+    def apply_profile(self, profile, at_t=None):
+        """Schedule a frozen DemandProfile from sim time at_t (None = now). Contract 0.2.0."""
+        at = self.t if at_t is None else float(at_t)
+        if at < self.t - 1e-9:
+            raise ValueError(f"at_t={at} is in the past (t={self.t})")
+        self.demand.schedule_change(profile, at)
+        return at
+
+    def set_demand(self, level=None, multiplier=None, entry_overrides=None, at_t=None):
+        """Contract 0.2.0: change demand from at_t; omitted arguments keep the latest values.
+        Returns the new (derived, frozen) profile."""
+        from backend.traffic.demand import derive_profile
+        child = derive_profile(self.latest_profile(), list(self.network.entry_nodes), level=level,
+                               multiplier=multiplier, entry_overrides=entry_overrides)
+        self.apply_profile(child, at_t)
+        return child

@@ -40,6 +40,26 @@ All 9 junctions are 4-way, so degree doesn't separate them. The primary street (
 class; betweenness separates the rest. The centre junction (n22) is 150 m from both other primary
 junctions, so the spacing penalty puts it third.
 
+## Simulation-based refinement (`backend/roadnet/sim_siting.py`)
+
+1. Candidates: the top ≤ 8 structurally ranked junctions.
+2. Baseline run with every candidate **unsignalised** (priority + gap acceptance).
+3. Greedy: each round simulates "current set + one more candidate" for every remaining candidate in
+   parallel (one process per run; signals run max-pressure) and adds the one that lowers `avg_wait_s` most.
+4. Stop at diminishing returns: best improvement < max(1 s, 3 % of the current wait).
+5. `sim_gain_s` = the candidate's marginal reduction of `avg_wait_s` when it was added (for candidates
+   never added: their marginal value in the last round, possibly ≤ 0). `recommended_ids` becomes the greedy order.
+
+Each run is 1 min warm-up + 3 simulated minutes, same seed and demand (rush by default) for every run, so
+differences come from the signals, not from demand noise. Results are cached per (area_id, seed, level);
+the demo city is precomputed and committed (`backend/data/siting/area_grid_mock_seed42_rush.json`,
+`python scripts/precompute_siting.py`). Other areas get the structural ranking immediately and can
+start `POST /api/area/{area_id}/refine` (async).
+
+**Demo city result (seed 42, rush, 12 cores, 14.6 s):** baseline (all unsignalised) avg wait 73.0 s; adding
+the SE junction `i_4024a1db` lowers it to 62.2 s (−10.8 s); no second signal clears the 3 % bar (best +1.6 s),
+so the greedy stops at one signal. Single seed, 3-minute windows: treat as indicative.
+
 ## Known limitations
 
 - Betweenness assumes every entry→exit pair is equally likely. It is not real demand.

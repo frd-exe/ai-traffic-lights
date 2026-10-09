@@ -94,6 +94,11 @@ class AreaService:
                 return area, "disk"
         return None
 
+    def update(self, area: AreaResponse) -> None:
+        """Replace a cached area (e.g. after simulation-based siting filled sim_gain_s)."""
+        with self._lock:
+            self._store(area)
+
     def get(self, aid: str) -> AreaResponse:
         hit = self._lookup(aid)
         if hit is None and aid == GRID_AREA_ID:

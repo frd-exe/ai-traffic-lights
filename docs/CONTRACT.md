@@ -1,6 +1,6 @@
 # Contract
 
-**contract_version: 0.2.0**
+**contract_version: 0.3.0**
 
 Machine-readable source of truth: `backend/contract/models.py` (pydantic v2), exported to
 `docs/schemas/*.json` (`python scripts/export_schemas.py`; `--check` in CI/pytest). Frontend
@@ -12,6 +12,8 @@ and this file gets fixed.
 
 | version | date | change |
 |---|---|---|
+| 0.3.0 | 2026-10-09 | **Observation:** `ApproachObservation.vehicles` (all vehicles on the in-edge) and `.downstream_vehicles` (mean count on the approach's out-edges), both optional with default 0, used by max-pressure. **Siting:** new `SitingResult` model; `POST /api/area/{area_id}/refine?seed=&level=` (starts or returns simulation-based siting, never blocks) and `GET` on the same path (status/result); when done, the area's `sim_gain_s` are filled and `recommended_ids` becomes the greedy order. **Real backend** now implements `/api/sim/start`, `/stop`, `/demand`, `/api/metrics`, `/ws/sim`, `/api/ai/reset`. |
+| 0.3.0 | 2026-10-09 | **Value change (owner-approved):** `LEVEL_FLOW_VEH_PER_H` retuned from 150/300/500/700 to **120/200/280/380** veh/h per entry, so low/medium sit under capacity, high is near it and rush is visibly over it without gridlock on the demo city (docs/results.md). `SimEngine.set_demand` now works mid-run (`at_t` ≥ current t), not only before start. **Clarifications** (Codex requests, no schema change): `deadlocks` also counts local mutual-blocking cycles stuck > 120 s; `blocked_spawns` counts each deferred vehicle once; teleported vehicles stay in the metric population for 120 s but never count as throughput; a phase's green is approach permission, crossings are arbitrated per movement by the engine; junctions with > 5 mutually exclusive phases keep clearance/min green and may exceed the 60 s max-red bound. |
 | 0.2.0 | 2026-10-09 | **Demand is simulated** (no external traffic data). Added `DemandResolveRequest.multiplier`, `.entry_overrides`; `source` now defaults to `baseline` and only `baseline` is accepted (`google_*` values stay in the enum as **reserved** and are rejected with `source_not_supported`). Added `DemandProfile.multiplier`, `.entry_overrides`, `.parent_id`. New `POST /api/sim/demand` (`SimDemandRequest` / `SimDemandResponse`). `SimEngine.set_demand` gained optional `multiplier`, `entry_overrides`, `at_t` (and `level` became optional). New `GET /api/demand/{id}`. |
 | 0.2.0 | 2026-10-09 | **Areas:** `AreaRequest.demo_city`; `AreaResponse.source` (`synthetic_grid` \| `osm`); synthetic demo city under the fixed id `area_grid_mock`; new `GET /api/demo-area` and `GET /api/area/{area_id}`. `area_id` now also hashes options (`ignore_osm_signals`); ids for default options are unchanged. New error codes: `bbox_too_large`, `area_not_available`, `rate_limited`, `no_roads`, `unknown_entry_node`, `source_not_supported`, `at_t_in_past`, `session_stopped`, `geocode_unavailable`. |
 | 0.2.0 | 2026-10-09 | Constants added: `DEMAND_MULTIPLIER_MIN/MAX`, `ENTRY_OVERRIDE_MAX`, `GRID_AREA_ID`, `CONSOLIDATE_RADIUS_M`, `SIGNAL_SNAP_M`, `AREA_RATE_LIMIT_PER_MIN`, `NOMINATIM_MIN_INTERVAL_S`. Mock scenario `google_down` removed (mock-only, not contract). Field descriptions of `DataStatus.last_update`, `DemandEntry.congestion_ratio` and `DemandEntry.scale` reworded without changing meaning (so `DataStatus`, `SimTick`, `HealthResponse` schemas changed textually). |
@@ -74,7 +76,7 @@ should regenerate types.
 | `THROUGHPUT_WINDOW_S` | 60 | throughput window |
 | `AI_CONSECUTIVE_FAILURE_LIMIT` | 3 | failures before fallback |
 | `AI_PROBE_INTERVAL_S` | 60 | recovery probe period (wall-clock) |
-| `LEVEL_FLOW_VEH_PER_H` | low 150, medium 300, high 500, rush 700 | flow per entry node |
+| `LEVEL_FLOW_VEH_PER_H` | low 120, medium 200, high 280, rush 380 (since 0.3.0) | flow per entry node |
 | `DEMAND_MULTIPLIER_MIN/MAX` | 0.2 / 3.0 | global multiplier range |
 | `ENTRY_OVERRIDE_MAX` | 5.0 | per-entry override range `(0, 5]` |
 | `MAX_BBOX_SIDE_M` | 3000 | largest OSM area side |
@@ -112,9 +114,11 @@ Field-level truth is in `docs/schemas/`. Summary (`?` = optional/nullable):
 - **DataStatus** `{state, message, last_update?, calls_today, daily_cap}`. Since 0.2.0 always
   `{state: "baseline_only", message: "Simulated demand", last_update: null, calls_today: 0, daily_cap: 0}`.
 - **Explanation** `{t, intersection_id?, text}`; `intersection_id = null` is a session-wide notice.
-- **Observation** `{t, intersections{id: {phases[], current_phase, time_in_phase_s, is_transition, approaches{approach_id: {queue, wait_s, arrival_rate}}}}}`.
+- **Observation** `{t, intersections{id: {phases[], current_phase, time_in_phase_s, is_transition, approaches{approach_id: {queue, wait_s, arrival_rate, vehicles, downstream_vehicles}}}}}`.
   `queue` = stopped vehicles within 50 m of the stop line; `wait_s` = longest current continuous
-  stopped time on the approach; `arrival_rate` = veh/s over the trailing 60 sim-s.
+  stopped time on the approach; `arrival_rate` = veh/s over the trailing 60 sim-s; `vehicles` = all
+  vehicles on the in-edge; `downstream_vehicles` = mean vehicle count on the approach's out-edges (0.3.0).
+- **SitingResult** `{area_id, seed, status: running|done|failed, demand_level, candidates[], order[], gains{id: s}, baseline_wait_s?, final_wait_s?, runtime_s?, message}` (0.3.0).
 - **Plan** `{intersection_id, phase, hold_s (0..120), reason}`.
 
 ## 4. Metric definitions
@@ -131,8 +135,12 @@ Identical in engine, experiments and UI. Computed by the engine only (`SimEngine
 - **avg_queue** = mean over approaches of stopped vehicles within 50 m upstream of the stop line
   (signalised and unsignalised approaches).
 - **throughput_per_min** = vehicles that exited in the trailing 60 sim-s.
-- **blocked_spawns** = cumulative spawn attempts deferred because the entry edge was full.
-- **deadlocks** = cumulative gridlock events detected (no vehicle moved for 60 sim-s while vehicles are present).
+- **blocked_spawns** = cumulative number of vehicles whose spawn was deferred because the entry edge was
+  full (each vehicle counted once, not per retry).
+- **deadlocks** = cumulative gridlock events resolved: (a) no vehicle moved for 60 sim-s while vehicles are
+  present, or (b) a local cycle of mutually blocking vehicles each stopped > 120 s. Each event teleports the
+  oldest involved vehicle out of the network.
+- Teleported vehicles stay in the metric population for 120 s (with their wait/delay) but never count as throughput.
 
 ## 5. REST
 
@@ -144,6 +152,8 @@ All JSON. Base path `/api`. Every error uses `ErrorResponse`.
 | `POST /api/area` | `AreaRequest {bbox, ignore_osm_signals?=false, demo_city?=false}` | `AreaResponse {area_id, source, network, intersections (ranked best first), recommended_ids}` |
 | `GET /api/demo-area` | – | `AreaResponse` for the synthetic demo city (`area_grid_mock`) |
 | `GET /api/area/{area_id}` | – | cached `AreaResponse` (404 `unknown_area`) |
+| `POST /api/area/{area_id}/refine?seed=42&level=rush` | – | `SitingResult` (returns immediately: cached result, or `status=running`) |
+| `GET /api/area/{area_id}/refine?seed=42&level=rush` | – | `SitingResult` (404 `siting_not_started`) |
 | `GET /api/geocode?q=` | – | `GeocodeResponse {results[{display_name, lat, lon, bbox?}]}` |
 | `POST /api/demand/resolve` | `DemandResolveRequest {area_id, source?="baseline", level?, multiplier?=1, entry_overrides?={}, departure_time?}` | `DemandResolveResponse {demand_profile, data_status}` |
 | `GET /api/demand/{profile_id}` | – | `DemandProfile` (frozen) |
@@ -177,8 +187,12 @@ they are not rejected), results cached in memory and on disk. Upstream failure �
 
 **Mock only:** `?scenario=ai_limit|ai_replay` on `/api/sim/start` and the WS URL (or env `MOCK_SCENARIO`).
 
-**Not yet in the real backend (`backend/app.py`):** `/api/sim/*`, `/api/metrics`, `/api/ai/reset`, `/ws/sim`
-(they need the engine). The mock implements all of them.
+**Siting refine.** The structural ranking is always returned at once by `/api/area`. `refine` runs the
+simulation-based siting (docs/SITING.md) in the background and caches it per (area_id, seed, level); the demo
+city's result is precomputed and committed, so the demo area already carries `sim_gain_s`.
+
+**Sim start validation:** `unknown_intersection` (400), `profile_area_mismatch` (400, profile resolved for another
+area), `unknown_demand_profile` (404). `/api/sim/demand` on a stopped session → 409 `session_stopped`.
 
 ## 6. WebSocket
 
@@ -198,8 +212,13 @@ they are not rejected), results cached in memory and on disk. Upstream failure �
 - **≥2 concurrent sessions** are supported (split compare).
 - **Demand model (simulated):** flow per entry node (veh/h) =
   `LEVEL_FLOW_VEH_PER_H[level] × multiplier × entry_overrides.get(entry, 1)`, with levels
-  low 150 / medium 300 / high 500 / rush 700 veh/h per entry, `multiplier ∈ [0.2, 3.0]`, overrides `∈ (0, 5]`.
-  `DemandEntry.scale` stores that flow relative to the medium level: `flow = scale × 300`.
+  low 120 / medium 200 / high 280 / rush 380 veh/h per entry (0.3.0), `multiplier ∈ [0.2, 3.0]`, overrides `∈ (0, 5]`.
+  `DemandEntry.scale` stores that flow relative to the medium level: `flow = scale × 200`. The engine uses
+  `scale` for every entry (it is authoritative).
+- **Mid-run changes** (`POST /api/sim/demand` → `SimEngine.apply_profile/set_demand`): arrivals up to `at_t`
+  use the old rates; at `at_t` each entry's pending arrival is redrawn from `at_t` with the new rate from the
+  same per-entry RNG stream. The schedule therefore depends only on seed + profile + (change, at_t), never on
+  when the request arrived or on the controller.
   Implementation: `backend/traffic/demand.py`.
 - **DemandProfile is resolved ONCE and frozen.** Resolving again gives a new id; existing profiles never
   change. Split-compare sessions pass the same `demand_profile_id` (and seed) so they see identical demand.
@@ -237,7 +256,15 @@ class Supervisor(Protocol):               # LLM
 - A command requests a phase; the **engine** enforces the transition (yellow 3 s → all-red 2 s),
   min green 7 s and max red 60 s (a starved approach is served even against the controller).
   Missing intersections keep their current request.
-- `set_demand`: omitted arguments keep their current values; the change takes effect at `at_t` (None = next step).
+- `set_demand`: omitted arguments keep their current values; the change takes effect at `at_t` (None = now);
+  `at_t` in the past raises. Returns the derived frozen profile. `apply_profile(profile, at_t)` schedules a given profile.
+- **Safety layer** (`backend/control/safety.py`) sits between every controller and the engine: unknown
+  ids dropped, transition target locked, min green, max-red starvation guard (red-time based, 53 s), and a
+  runtime check that green approaches always form exactly one phase. Every override is logged and counted.
+- **Implemented controllers** (`backend/control/`): `fixed` (30 s per phase), `webster` (900 veh/h/lane
+  saturation flow, 90 s cycle cap), `max_pressure` (counts-based, 10-vehicle switch hysteresis, holds when the
+  junction is empty, a lone vehicle on red triggers a switch once min green is served), `ai`
+  (`gemini+max_pressure`, below).
 - **Cadence:** controllers are asked every 1 sim-second. In `ai` mode the controller is
   `gemini+max_pressure`: max-pressure runs every second, and a **plan executor** applies the latest
   Gemini `Plan`s on top of it (hold `phase` for up to `hold_s`). The Gemini supervisor runs
@@ -281,8 +308,24 @@ last valid plans until they expire; the failure counter resets after any success
   at their next controller tick.
 - The daily counter is persisted (`backend/data/state/usage.json`) so restarts don't reset it.
 
-**Testing:** `GEMINI_FAKE_FAIL` = `429` | `timeout` | `5xx` | `invalid` | `key` simulates each trigger. The mock
-server's `?scenario=ai_limit` exercises the UI path.
+**Implementation (`backend/control/ai_gemini.py`, `backend/ai/gemini_client.py`):**
+- Live sessions: one async, non-blocking call every `GEMINI_MIN_INTERVAL_S` (default 6 s) of **wall** time;
+  never per tick, not faster at higher sim speed; at most one call in flight; 8 s timeout, one retry for
+  timeout/5xx/invalid output (the pair counts as ONE call for the 3-failure rule). Headless experiments use a
+  **sim-time** interval (default 20 sim-s).
+- Input: compact JSON observation for all selected intersections. Output: JSON-only via response schema, an
+  ARRAY of `{intersection_id, phase, hold_s (clamped to 5–40), reason}`; unknown ids are dropped.
+- Plan executor (every sim-second): `hold_s` is a **maximum**. A plan ends early when max-pressure's best
+  phase beats the planned phase by > 15 vehicles; on expiry the junction returns to max-pressure.
+  `reason` strings go to the explanation stream.
+- Budget: `GEMINI_DAILY_CAP` per UTC day, counter persisted in `<STATE_DIR>/usage.json`; rate limit
+  `GEMINI_RPM` (default 10/min). Keys are never logged.
+- `AI_RECORD=<file>` records plans per (seed, sim t); `AI_REPLAY=<file>` replays them without API calls
+  (`state = ai_replay`).
+
+**Testing:** `GEMINI_FAKE_FAIL` = `limit` (alias `429`) | `invalid` (alias `key`, invalid key) | `timeout` |
+`5xx` | `badjson` (invalid output) simulates each trigger without network. The mock server's
+`?scenario=ai_limit` exercises the UI path.
 
 ## 10. Traffic data
 
@@ -292,7 +335,12 @@ constants are **reserved** (kept so the schema stays additive) and are never pro
 
 ## 11. Engine rules
 
-- yellow 3 s, all-red 2 s, min green 7 s, max red wait 60 s (signalised junctions).
+- yellow 3 s, all-red 2 s, min green 7 s, max red wait 60 s (signalised junctions). Junctions with more
+  than 5 mutually exclusive phases cannot satisfy all four; clearance and min green always win.
+- A phase's green is **approach permission**; actual crossings are arbitrated per movement (0.3.0): a crossing
+  reserves its movement for 2 s and blocks conflicting movements (crossing paths, permissive left vs.
+  opposing traffic, merges into the same exit). Movements from the same approach and opposing non-left
+  movements cross together. No vehicle enters on yellow or red.
 - Unsignalised junctions: priority by road class (higher class has priority, ties = right-hand rule)
   with gap acceptance on the minor approach.
 - Vehicles that can't enter a full entry edge wait in an external spawn queue (counted in metrics).

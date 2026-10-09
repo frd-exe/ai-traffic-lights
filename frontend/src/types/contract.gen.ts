@@ -1,7 +1,7 @@
 /* Generated from docs/schemas/contract.bundle.json by `npm run gen:types`. Do not edit. */
 
 /**
- * AI traffic lights contract v0.2.0 (generated, do not edit)
+ * AI traffic lights contract v0.3.0 (generated, do not edit)
  */
 export interface Contract {
   AiResetResponse?: AiResetResponse;
@@ -40,6 +40,7 @@ export interface Contract {
   SimStopRequest?: SimStopRequest;
   SimStopResponse?: SimStopResponse;
   SimTick?: SimTick;
+  SitingResult?: SitingResult;
   Vehicle?: Vehicle;
 }
 /**
@@ -82,9 +83,17 @@ export interface ApproachObservation {
    */
   arrival_rate: number;
   /**
+   * mean vehicle count on this approach's out-edges (v0.3.0; max-pressure downstream count)
+   */
+  downstream_vehicles?: number;
+  /**
    * stopped vehicles within 50 m of stop line
    */
   queue: number;
+  /**
+   * all vehicles on the in-edge, moving or stopped (v0.3.0; max-pressure upstream count)
+   */
+  vehicles?: number;
   /**
    * longest current continuous stopped time on this approach
    */
@@ -633,4 +642,37 @@ export interface Vehicle {
    * m/s
    */
   speed: number;
+}
+/**
+ * Simulation-based siting (v0.3.0): POST/GET /api/area/{area_id}/refine.
+ *
+ * This interface was referenced by `Contract`'s JSON-Schema
+ * via the `definition` "SitingResult".
+ */
+export interface SitingResult {
+  area_id: string;
+  /**
+   * avg_wait_s with all candidates unsignalised
+   */
+  baseline_wait_s?: number | null;
+  /**
+   * top structural candidates evaluated
+   */
+  candidates?: string[];
+  demand_level: "low" | "medium" | "high" | "rush";
+  final_wait_s?: number | null;
+  /**
+   * sim_gain_s per candidate (s of avg_wait_s saved)
+   */
+  gains?: {
+    [k: string]: number;
+  };
+  message?: string;
+  /**
+   * signals added greedily, most useful first
+   */
+  order?: string[];
+  runtime_s?: number | null;
+  seed: number;
+  status: "running" | "done" | "failed";
 }

@@ -204,6 +204,10 @@ class ApproachObservation(Model):
     queue: Annotated[int, Field(ge=0)] = Field(description="stopped vehicles within 50 m of stop line")
     wait_s: NonNeg = Field(description="longest current continuous stopped time on this approach")
     arrival_rate: NonNeg = Field(description="veh/s, trailing 60 sim-s")
+    vehicles: Annotated[int, Field(ge=0)] = Field(
+        default=0, description="all vehicles on the in-edge, moving or stopped (v0.3.0; max-pressure upstream count)")
+    downstream_vehicles: NonNeg = Field(
+        default=0.0, description="mean vehicle count on this approach's out-edges (v0.3.0; max-pressure downstream count)")
 
 
 class IntersectionObservation(Model):
@@ -313,6 +317,21 @@ class SimDemandResponse(Model):
     applies_at_t: NonNeg
 
 
+class SitingResult(Model):
+    """Simulation-based siting (v0.3.0): POST/GET /api/area/{area_id}/refine."""
+    area_id: str
+    seed: int
+    status: Literal["running", "done", "failed"]
+    demand_level: DemandLevel
+    candidates: list[str] = Field(default_factory=list, description="top structural candidates evaluated")
+    order: list[str] = Field(default_factory=list, description="signals added greedily, most useful first")
+    gains: dict[str, float] = Field(default_factory=dict, description="sim_gain_s per candidate (s of avg_wait_s saved)")
+    baseline_wait_s: float | None = Field(default=None, description="avg_wait_s with all candidates unsignalised")
+    final_wait_s: float | None = None
+    runtime_s: float | None = None
+    message: str = ""
+
+
 class MetricsResponse(Model):
     session_id: str
     t: NonNeg
@@ -348,5 +367,5 @@ ALL_MODELS: list[type[BaseModel]] = [
     HealthResponse, AreaRequest, AreaResponse, GeocodeResult, GeocodeResponse,
     DemandResolveRequest, DemandResolveResponse, SimStartRequest, SimStartResponse,
     SimStopRequest, SimStopResponse, MetricsResponse, AiResetResponse, SimTick,
-    SimDemandRequest, SimDemandResponse,
+    SimDemandRequest, SimDemandResponse, SitingResult,
 ]

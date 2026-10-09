@@ -5,7 +5,7 @@ All values are SI (seconds, metres, metres/second) unless the name says otherwis
 
 from typing import Final
 
-CONTRACT_VERSION: Final = "0.2.0"
+CONTRACT_VERSION: Final = "0.3.0"
 
 # --- Signal timing (engine rules) ---
 YELLOW_S: Final = 3.0
@@ -40,7 +40,9 @@ ID_HASH_HEX_LEN: Final = 8
 
 # --- Demand ---
 # Per-entry flow (veh/h) for each level. Entry flow = LEVEL_FLOW[level] * multiplier * entry_override.
-LEVEL_FLOW_VEH_PER_H: Final = {"low": 150.0, "medium": 300.0, "high": 500.0, "rush": 700.0}
+# v0.3.0 retune (was 150/300/500/700): calibrated on the demo grid so that low/medium are clearly
+# under capacity, high is near it and rush is visibly over it without gridlock (docs/results.md).
+LEVEL_FLOW_VEH_PER_H: Final = {"low": 120.0, "medium": 200.0, "high": 280.0, "rush": 380.0}
 BASE_LEVEL: Final = "medium"  # DemandEntry.scale is relative to this level's flow
 DEMAND_MULTIPLIER_MIN: Final = 0.2
 DEMAND_MULTIPLIER_MAX: Final = 3.0
