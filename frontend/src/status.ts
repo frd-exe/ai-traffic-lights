@@ -9,9 +9,9 @@ export function controllerBanner(cs: ControllerStatus): Banner | null {
     case "ai_limit_reached":
       return { level: "warn", text: `AI limit reached: signals reverted to traditional fixed timers (${since})` };
     case "ai_unavailable":
-      return { level: "warn", text: `AI unavailable: signals reverted to traditional fixed timers (${since})` };
+      return { level: "warn", text: `AI unavailable: signals reverted to traditional fixed timers (${since}). ${cs.message}` };
     case "ai_replay":
-      return { level: "info", text: `AI replay: replaying recorded Gemini plans, no live calls (${since})` };
+      return null;
     default:
       return null;
   }
@@ -19,5 +19,12 @@ export function controllerBanner(cs: ControllerStatus): Banner | null {
 
 export function dataBanner(ds: DataStatus): Banner | null {
   if (ds.state === "google_live") return null;
-  return { level: ds.state === "baseline_only" ? "info" : "warn", text: ds.message };
+  const wording = ds.state === "baseline_only" ? "Google data unavailable: using manual baseline demand" :
+    ds.state === "google_cached" ? "Google data unavailable: using cached traffic data" :
+    "Google data unavailable: using recorded snapshot";
+  return { level: ds.state === "baseline_only" ? "info" : "warn", text: wording };
+}
+
+export function dailyCapFallback(cs: ControllerStatus): boolean {
+  return cs.state === "ai_limit_reached" && cs.daily_cap > 0 && cs.calls_today >= cs.daily_cap;
 }
