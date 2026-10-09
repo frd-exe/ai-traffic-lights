@@ -14,7 +14,7 @@
             }
           ],
           "default": null,
-          "description": "Google duration / staticDuration; null for baseline_only",
+          "description": "reserved for external traffic data; always null since v0.2.0",
           "title": "Congestion Ratio"
         },
         "entry_node_id": {
@@ -22,7 +22,7 @@
           "type": "string"
         },
         "scale": {
-          "description": "multiplies the base (medium) per-entry flow",
+          "description": "entry flow = scale * LEVEL_FLOW_VEH_PER_H['medium'] (veh/h)",
           "exclusiveMinimum": 0,
           "title": "Scale",
           "type": "number"
@@ -76,6 +76,16 @@
       "title": "Entries",
       "type": "array"
     },
+    "entry_overrides": {
+      "additionalProperties": {
+        "exclusiveMinimum": 0,
+        "maximum": 5.0,
+        "type": "number"
+      },
+      "description": "per-entry scale factor on top of level x multiplier (v0.2.0)",
+      "title": "Entry Overrides",
+      "type": "object"
+    },
     "id": {
       "title": "Id",
       "type": "string"
@@ -98,6 +108,27 @@
       "default": null,
       "description": "set for baseline_only",
       "title": "Level"
+    },
+    "multiplier": {
+      "default": 1.0,
+      "description": "global demand multiplier (v0.2.0)",
+      "maximum": 3.0,
+      "minimum": 0.2,
+      "title": "Multiplier",
+      "type": "number"
+    },
+    "parent_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "profile this one was derived from by /api/sim/demand (v0.2.0)",
+      "title": "Parent Id"
     },
     "source": {
       "enum": [

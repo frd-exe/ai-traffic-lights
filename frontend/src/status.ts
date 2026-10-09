@@ -17,7 +17,9 @@ export function controllerBanner(cs: ControllerStatus): Banner | null {
   }
 }
 
+/** Simulated demand (baseline_only) is the normal case since contract 0.2.0: no banner.
+ *  The other states are reserved; if a backend ever sends one, show its message. */
 export function dataBanner(ds: DataStatus): Banner | null {
-  if (ds.state === "google_live") return null;
-  return { level: ds.state === "baseline_only" ? "info" : "warn", text: ds.message };
+  if (ds.state === "baseline_only") return null;
+  return { level: "info", text: ds.message };
 }

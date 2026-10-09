@@ -1,0 +1,79 @@
+{
+  "additionalProperties": false,
+  "description": "Change demand of a running session (v0.2.0). Omitted fields keep the current value.\nFor split compare, send the same at_t to both sessions.",
+  "properties": {
+    "at_t": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "sim time to apply the change; null = next step",
+      "title": "At T"
+    },
+    "entry_overrides": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "exclusiveMinimum": 0,
+            "maximum": 5.0,
+            "type": "number"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "replaces the current overrides when set",
+      "title": "Entry Overrides"
+    },
+    "level": {
+      "anyOf": [
+        {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "rush"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Level"
+    },
+    "multiplier": {
+      "anyOf": [
+        {
+          "maximum": 3.0,
+          "minimum": 0.2,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Multiplier"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id"
+  ],
+  "title": "SimDemandRequest",
+  "type": "object"
+}

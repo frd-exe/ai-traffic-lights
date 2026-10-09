@@ -5,13 +5,15 @@ import type {
   DemandResolveResponse,
   ErrorResponse,
   HealthResponse,
+  SimDemandRequest,
+  SimDemandResponse,
   SimStartRequest,
   SimStartResponse,
   SimStopResponse,
   SimTick,
 } from "./types/contract.gen";
 
-export type Scenario = "none" | "ai_limit" | "ai_replay" | "google_down";
+export type Scenario = "none" | "ai_limit" | "ai_replay";
 
 export class ApiError extends Error {
   constructor(
@@ -42,8 +44,9 @@ const q = (scenario: Scenario) => (scenario === "none" ? "" : `?scenario=${scena
 export const api = {
   health: () => call<HealthResponse>("GET", "/api/health"),
   area: (req: AreaRequest) => call<AreaResponse>("POST", "/api/area", req),
-  resolveDemand: (req: DemandResolveRequest, scenario: Scenario) =>
-    call<DemandResolveResponse>("POST", `/api/demand/resolve${q(scenario)}`, req),
+  demoArea: () => call<AreaResponse>("GET", "/api/demo-area"),
+  resolveDemand: (req: DemandResolveRequest) => call<DemandResolveResponse>("POST", "/api/demand/resolve", req),
+  changeDemand: (req: SimDemandRequest) => call<SimDemandResponse>("POST", "/api/sim/demand", req),
   start: (req: SimStartRequest, scenario: Scenario) =>
     call<SimStartResponse>("POST", `/api/sim/start${q(scenario)}`, req),
   stop: (session_id: string) => call<SimStopResponse>("POST", "/api/sim/stop", { session_id }),

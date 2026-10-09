@@ -1,56 +1,5 @@
 {
   "$defs": {
-    "DataStatus": {
-      "additionalProperties": false,
-      "properties": {
-        "calls_today": {
-          "minimum": 0,
-          "title": "Calls Today",
-          "type": "integer"
-        },
-        "daily_cap": {
-          "minimum": 0,
-          "title": "Daily Cap",
-          "type": "integer"
-        },
-        "last_update": {
-          "anyOf": [
-            {
-              "format": "date-time",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "when the underlying traffic data was produced; null for simulated demand",
-          "title": "Last Update"
-        },
-        "message": {
-          "title": "Message",
-          "type": "string"
-        },
-        "state": {
-          "enum": [
-            "google_live",
-            "google_cached",
-            "google_snapshot",
-            "baseline_only"
-          ],
-          "title": "State",
-          "type": "string"
-        }
-      },
-      "required": [
-        "state",
-        "message",
-        "last_update",
-        "calls_today",
-        "daily_cap"
-      ],
-      "title": "DataStatus",
-      "type": "object"
-    },
     "DemandEntry": {
       "additionalProperties": false,
       "properties": {
@@ -204,17 +153,25 @@
   },
   "additionalProperties": false,
   "properties": {
-    "data_status": {
-      "$ref": "#/$defs/DataStatus"
+    "applies_at_t": {
+      "minimum": 0,
+      "title": "Applies At T",
+      "type": "number"
     },
     "demand_profile": {
-      "$ref": "#/$defs/DemandProfile"
+      "$ref": "#/$defs/DemandProfile",
+      "description": "new frozen profile (parent_id = previous profile)"
+    },
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
     }
   },
   "required": [
+    "session_id",
     "demand_profile",
-    "data_status"
+    "applies_at_t"
   ],
-  "title": "DemandResolveResponse",
+  "title": "SimDemandResponse",
   "type": "object"
 }

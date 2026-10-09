@@ -41,8 +41,17 @@ class SimEngine(Protocol):
         """Hash of the demand schedule (spawn t, origin, destination, speed factor).
         Depends only on seed + demand profile, never on controller or driver behaviour."""
 
-    def set_demand(self, level: DemandLevel) -> None:
-        """Dev/testing only: rescale baseline demand. Never called on a running compare session."""
+    def set_demand(
+        self,
+        level: DemandLevel | None = None,
+        multiplier: float | None = None,
+        entry_overrides: dict[str, float] | None = None,
+        at_t: float | None = None,
+    ) -> None:
+        """Change demand from sim time `at_t` (None = next step); omitted args keep current values.
+        Backs POST /api/sim/demand (v0.2.0: multiplier, entry_overrides, at_t added).
+        The schedule after at_t must depend only on seed + profile + the change, so split-compare
+        sessions given the same change at the same at_t keep identical demand schedules."""
 
 
 class SimEngineFactory(Protocol):

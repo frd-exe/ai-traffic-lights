@@ -68,9 +68,11 @@ def wait_http(url: str, timeout_s: float = 20) -> bool:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scenario", choices=["none", "ai_limit", "ai_replay", "google_down"], default=None)
+    ap.add_argument("--scenario", choices=["none", "ai_limit", "ai_replay"], default=None)
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--backend-only", action="store_true")
+    ap.add_argument("--real", action="store_true",
+                    help="run the real backend (backend.app) instead of the mock; no simulation endpoints yet")
     args = ap.parse_args()
 
     if sys.version_info < (3, 11):
@@ -94,11 +96,12 @@ def main() -> None:
 
     procs: list[subprocess.Popen] = []
     try:
-        procs.append(spawn([sys.executable, "-m", "uvicorn", "backend.mock_server:app",
+        target, label = ("backend.app:app", "real backend") if args.real else ("backend.mock_server:app", "mock backend")
+        procs.append(spawn([sys.executable, "-m", "uvicorn", target,
                             "--host", "127.0.0.1", "--port", str(args.port)], ROOT, env))
         if not wait_http(f"http://127.0.0.1:{args.port}/api/health"):
-            die("mock backend did not start (port in use?)")
-        print(f"[run_demo] mock backend: http://127.0.0.1:{args.port}/api/health")
+            die(f"{label} did not start (port in use?)")
+        print(f"[run_demo] {label}: http://127.0.0.1:{args.port}/api/health")
 
         if not args.backend_only:
             npm = shutil.which("npm")

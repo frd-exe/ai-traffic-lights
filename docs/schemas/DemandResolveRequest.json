@@ -18,6 +18,16 @@
       "default": null,
       "title": "Departure Time"
     },
+    "entry_overrides": {
+      "additionalProperties": {
+        "exclusiveMinimum": 0,
+        "maximum": 5.0,
+        "type": "number"
+      },
+      "description": "{entry_node_id: scale factor} (v0.2.0)",
+      "title": "Entry Overrides",
+      "type": "object"
+    },
     "level": {
       "anyOf": [
         {
@@ -37,7 +47,17 @@
       "description": "baseline level; default medium",
       "title": "Level"
     },
+    "multiplier": {
+      "default": 1.0,
+      "description": "global demand multiplier (v0.2.0)",
+      "maximum": 3.0,
+      "minimum": 0.2,
+      "title": "Multiplier",
+      "type": "number"
+    },
     "source": {
+      "default": "baseline",
+      "description": "only 'baseline' is accepted since v0.2.0; google_* are reserved and rejected",
       "enum": [
         "google_live",
         "google_snapshot",
@@ -48,8 +68,7 @@
     }
   },
   "required": [
-    "area_id",
-    "source"
+    "area_id"
   ],
   "title": "DemandResolveRequest",
   "type": "object"

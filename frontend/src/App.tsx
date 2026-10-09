@@ -7,11 +7,13 @@ import { controllerBanner, dataBanner } from "./status";
 import type { AreaResponse, Explanation, SimStartRequest, SimTick } from "./types/contract.gen";
 
 type Mode = SimStartRequest["mode"];
-type DemandSource = "baseline" | "google_live" | "google_snapshot";
+type Level = "low" | "medium" | "high" | "rush";
 type Run = { sessionId: string; mode: Mode; tick: SimTick | null };
 
 const MODES: Mode[] = ["ai", "max_pressure", "webster", "fixed"];
-const SCENARIOS: Scenario[] = ["none", "ai_limit", "ai_replay", "google_down"];
+const LEVELS: Level[] = ["low", "medium", "high", "rush"];
+const SCENARIOS: Scenario[] = ["none", "ai_limit", "ai_replay"];
+const DEMAND_LEAD_S = 2; // a mid-run change applies this many sim-seconds ahead, identically for all sessions
 const fmt = (x: number | undefined) => (x === undefined ? "-" : x.toFixed(1));
 
 export default function App() {
@@ -20,7 +22,8 @@ export default function App() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<Mode>("ai");
   const [compare, setCompare] = useState(true);
-  const [source, setSource] = useState<DemandSource>("google_live");
+  const [level, setLevel] = useState<Level>("medium");
+  const [multiplier, setMultiplier] = useState(1);
   const [scenario, setScenario] = useState<Scenario>("none");
   const [runs, setRuns] = useState<Run[]>([]);
   const [feed, setFeed] = useState<Explanation[]>([]);
@@ -29,14 +32,14 @@ export default function App() {
   const closers = useRef<(() => void)[]>([]);
   const toasted = useRef<Set<string>>(new Set());
 
-  const analyze = async () => {
+  const loadArea = async (demo: boolean) => {
     setError(null);
     try {
       const map = mapRef.current;
       const bbox = map ? bboxOf(map) : { west: 2.16, south: 41.385, east: 2.17, north: 41.395 };
-      const res = await api.area({ bbox });
+      const res = demo ? await api.demoArea() : await api.area({ bbox });
       setArea(res);
-      setSelected(new Set(res.recommended_ids));
+      setSelected(new Set(res.recommended_ids ?? []));
     } catch (e) {
       setError(String(e));
     }
@@ -78,7 +81,7 @@ export default function App() {
     toasted.current.clear();
     try {
       // Resolve demand ONCE; every compared session shares the frozen profile + seed.
-      const demand = await api.resolveDemand({ area_id: area.area_id, source, level: "medium" }, scenario);
+      const demand = await api.resolveDemand({ area_id: area.area_id, level, multiplier });
       const modes: Mode[] = compare && mode !== "fixed" ? [mode, "fixed"] : [mode];
       const started: Run[] = [];
       for (const m of modes) {
@@ -93,6 +96,18 @@ export default function App() {
         closers.current.push(openSimSocket(session_id, scenario, onTick, setError));
       }
       setRuns(started);
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  // Mid-run demand change: the same change at the same at_t for every session (fair comparison).
+  const applyDemand = async () => {
+    if (!runs.length) return;
+    setError(null);
+    const atT = Math.ceil(Math.max(...runs.map((r) => r.tick?.t ?? 0))) + DEMAND_LEAD_S;
+    try {
+      await Promise.all(runs.map((r) => api.changeDemand({ session_id: r.sessionId, level, multiplier, at_t: atT })));
     } catch (e) {
       setError(String(e));
     }
@@ -119,9 +134,15 @@ export default function App() {
     <div className="app">
       <aside className="panel">
         <h1>AI Traffic Lights</h1>
-        <button onClick={analyze}>1. Analyze current view</button>
+        <div className="row">
+          <button onClick={() => void loadArea(true)}>1. Demo city</button>
+          <button onClick={() => void loadArea(false)}>or analyze view</button>
+        </div>
         <p className="hint">
-          {area ? `${area.intersections.length} junctions, ${selected.size} signalised (click to toggle)` : "Pan the map, then analyze."}
+          {area
+            ? `${area.source === "synthetic_grid" ? "Demo city (synthetic grid)" : "OpenStreetMap area"}: ` +
+              `${area.intersections.length} junctions, ${selected.size} signalised (click to toggle)`
+            : "Load the demo city, or pan the map and analyze the view."}
         </p>
         <label>
           Mode
@@ -133,12 +154,15 @@ export default function App() {
           <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} /> Compare vs fixed timers
         </label>
         <label>
-          Traffic data
-          <select value={source} onChange={(e) => setSource(e.target.value as DemandSource)}>
-            <option value="google_live">Google live</option>
-            <option value="google_snapshot">Google snapshot</option>
-            <option value="baseline">Baseline (medium)</option>
+          Simulated demand
+          <select value={level} onChange={(e) => setLevel(e.target.value as Level)}>
+            {LEVELS.map((l) => <option key={l}>{l}</option>)}
           </select>
+        </label>
+        <label>
+          Multiplier ×{multiplier.toFixed(1)}
+          <input type="range" min={0.2} max={3} step={0.1} value={multiplier}
+            onChange={(e) => setMultiplier(Number(e.target.value))} />
         </label>
         <label>
           Mock scenario
@@ -148,6 +172,7 @@ export default function App() {
         </label>
         <div className="row">
           <button onClick={start} disabled={!area}>2. Start</button>
+          <button onClick={() => void applyDemand()} disabled={!runs.length}>Apply demand</button>
           <button onClick={() => void stopAll()} disabled={!runs.length}>Stop</button>
         </div>
         {error && <p className="error">{error}</p>}
@@ -170,6 +195,7 @@ export default function App() {
             </tr>
           </tbody>
         </table>
+        <p className="hint">Demand: {primary?.data_status.message ?? "Simulated demand"}</p>
 
         <h2>AI explanations</h2>
         <ul className="feed">

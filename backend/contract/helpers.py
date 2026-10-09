@@ -37,9 +37,13 @@ def approach_id(intersection_id_: str, bearing_deg: float) -> str:
     return _h("a_", f"{intersection_id_}:{round_bearing(bearing_deg)}")
 
 
-def area_id(west: float, south: float, east: float, north: float) -> str:
-    """ar_ + sha1 of the rounded bbox, so re-analysing the same box hits the cache."""
-    return _h("ar_", ",".join(_coord(v) for v in (west, south, east, north)))
+def area_id(west: float, south: float, east: float, north: float, ignore_osm_signals: bool = False) -> str:
+    """ar_ + sha1 of the rounded bbox (+ options), so re-analysing the same box hits the cache.
+    With default options the key is just the bbox, so v0.1.0 ids are unchanged."""
+    key = ",".join(_coord(v) for v in (west, south, east, north))
+    if ignore_osm_signals:
+        key += ";ignore_osm_signals"
+    return _h("ar_", key)
 
 
 def demand_scale(congestion_ratio: float) -> float:

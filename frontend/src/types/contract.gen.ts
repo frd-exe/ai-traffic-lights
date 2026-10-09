@@ -1,7 +1,7 @@
 /* Generated from docs/schemas/contract.bundle.json by `npm run gen:types`. Do not edit. */
 
 /**
- * AI traffic lights contract v0.1.0 (generated, do not edit)
+ * AI traffic lights contract v0.2.0 (generated, do not edit)
  */
 export interface Contract {
   AiResetResponse?: AiResetResponse;
@@ -33,6 +33,8 @@ export interface Contract {
   Plan?: Plan;
   RoadNetwork?: RoadNetwork;
   SignalState?: SignalState;
+  SimDemandRequest?: SimDemandRequest;
+  SimDemandResponse?: SimDemandResponse;
   SimStartRequest?: SimStartRequest;
   SimStartResponse?: SimStartResponse;
   SimStopRequest?: SimStopRequest;
@@ -94,6 +96,10 @@ export interface ApproachObservation {
  */
 export interface AreaRequest {
   bbox: BBox;
+  /**
+   * ignore bbox, return the synthetic grid demo city (v0.2.0)
+   */
+  demo_city?: boolean;
   ignore_osm_signals?: boolean;
 }
 /**
@@ -121,6 +127,10 @@ export interface AreaResponse {
    * default selection for the UI
    */
   recommended_ids?: string[];
+  /**
+   * synthetic_grid = demo city; osm = parsed OpenStreetMap data (v0.2.0)
+   */
+  source: "synthetic_grid" | "osm";
 }
 /**
  * This interface was referenced by `Contract`'s JSON-Schema
@@ -223,7 +233,7 @@ export interface DataStatus {
   calls_today: number;
   daily_cap: number;
   /**
-   * when the underlying Google data was fetched
+   * when the underlying traffic data was produced; null for simulated demand
    */
   last_update: string | null;
   message: string;
@@ -235,12 +245,12 @@ export interface DataStatus {
  */
 export interface DemandEntry {
   /**
-   * Google duration / staticDuration; null for baseline_only
+   * reserved for external traffic data; always null since v0.2.0
    */
   congestion_ratio?: number | null;
   entry_node_id: string;
   /**
-   * multiplies the base (medium) per-entry flow
+   * entry flow = scale * LEVEL_FLOW_VEH_PER_H['medium'] (veh/h)
    */
   scale: number;
 }
@@ -255,11 +265,25 @@ export interface DemandProfile {
   created_at: string;
   departure_time?: string | null;
   entries: DemandEntry[];
+  /**
+   * per-entry scale factor on top of level x multiplier (v0.2.0)
+   */
+  entry_overrides?: {
+    [k: string]: number;
+  };
   id: string;
   /**
    * set for baseline_only
    */
   level?: ("low" | "medium" | "high" | "rush") | null;
+  /**
+   * global demand multiplier (v0.2.0)
+   */
+  multiplier?: number;
+  /**
+   * profile this one was derived from by /api/sim/demand (v0.2.0)
+   */
+  parent_id?: string | null;
   source: "google_live" | "google_cached" | "google_snapshot" | "baseline_only";
 }
 /**
@@ -270,10 +294,23 @@ export interface DemandResolveRequest {
   area_id: string;
   departure_time?: string | null;
   /**
+   * {entry_node_id: scale factor} (v0.2.0)
+   */
+  entry_overrides?: {
+    [k: string]: number;
+  };
+  /**
    * baseline level; default medium
    */
   level?: ("low" | "medium" | "high" | "rush") | null;
-  source: "google_live" | "google_snapshot" | "baseline";
+  /**
+   * global demand multiplier (v0.2.0)
+   */
+  multiplier?: number;
+  /**
+   * only 'baseline' is accepted since v0.2.0; google_* are reserved and rejected
+   */
+  source?: "google_live" | "google_snapshot" | "baseline";
 }
 /**
  * This interface was referenced by `Contract`'s JSON-Schema
@@ -450,6 +487,66 @@ export interface SignalState {
    * seconds since this phase (or transition) began
    */
   time_in_phase_s: number;
+}
+/**
+ * Change demand of a running session (v0.2.0). Omitted fields keep the current value.
+ * For split compare, send the same at_t to both sessions.
+ *
+ * This interface was referenced by `Contract`'s JSON-Schema
+ * via the `definition` "SimDemandRequest".
+ */
+export interface SimDemandRequest {
+  /**
+   * sim time to apply the change; null = next step
+   */
+  at_t?: number | null;
+  /**
+   * replaces the current overrides when set
+   */
+  entry_overrides?: {
+    [k: string]: number;
+  } | null;
+  level?: ("low" | "medium" | "high" | "rush") | null;
+  multiplier?: number | null;
+  session_id: string;
+}
+/**
+ * This interface was referenced by `Contract`'s JSON-Schema
+ * via the `definition` "SimDemandResponse".
+ */
+export interface SimDemandResponse {
+  applies_at_t: number;
+  demand_profile: DemandProfile1;
+  session_id: string;
+}
+/**
+ * Resolved ONCE and frozen; sessions reference it by id.
+ */
+export interface DemandProfile1 {
+  area_id?: string | null;
+  created_at: string;
+  departure_time?: string | null;
+  entries: DemandEntry[];
+  /**
+   * per-entry scale factor on top of level x multiplier (v0.2.0)
+   */
+  entry_overrides?: {
+    [k: string]: number;
+  };
+  id: string;
+  /**
+   * set for baseline_only
+   */
+  level?: ("low" | "medium" | "high" | "rush") | null;
+  /**
+   * global demand multiplier (v0.2.0)
+   */
+  multiplier?: number;
+  /**
+   * profile this one was derived from by /api/sim/demand (v0.2.0)
+   */
+  parent_id?: string | null;
+  source: "google_live" | "google_cached" | "google_snapshot" | "baseline_only";
 }
 /**
  * This interface was referenced by `Contract`'s JSON-Schema

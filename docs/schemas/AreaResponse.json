@@ -329,10 +329,20 @@
       },
       "title": "Recommended Ids",
       "type": "array"
+    },
+    "source": {
+      "description": "synthetic_grid = demo city; osm = parsed OpenStreetMap data (v0.2.0)",
+      "enum": [
+        "synthetic_grid",
+        "osm"
+      ],
+      "title": "Source",
+      "type": "string"
     }
   },
   "required": [
     "area_id",
+    "source",
     "network",
     "intersections"
   ],

@@ -21,7 +21,7 @@
           "type": "null"
         }
       ],
-      "description": "when the underlying Google data was fetched",
+      "description": "when the underlying traffic data was produced; null for simulated demand",
       "title": "Last Update"
     },
     "message": {

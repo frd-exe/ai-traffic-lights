@@ -10,7 +10,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .constants import CONTRACT_VERSION
+from .constants import CONTRACT_VERSION, DEMAND_MULTIPLIER_MAX, DEMAND_MULTIPLIER_MIN, ENTRY_OVERRIDE_MAX
 
 
 class Model(BaseModel):
@@ -30,6 +30,7 @@ DemandSource = DataState
 DemandRequestSource = Literal["google_live", "google_snapshot", "baseline"]
 DemandLevel = Literal["low", "medium", "high", "rush"]
 SignalColor = Literal["green", "yellow", "red"]
+AreaSource = Literal["synthetic_grid", "osm"]
 
 Lat = Annotated[float, Field(ge=-90, le=90)]
 Lon = Annotated[float, Field(ge=-180, le=180)]
@@ -160,8 +161,13 @@ class ControllerStatus(Model):
 class DemandEntry(Model):
     entry_node_id: str
     congestion_ratio: Annotated[float, Field(gt=0)] | None = Field(
-        default=None, description="Google duration / staticDuration; null for baseline_only")
-    scale: Annotated[float, Field(gt=0)] = Field(description="multiplies the base (medium) per-entry flow")
+        default=None, description="reserved for external traffic data; always null since v0.2.0")
+    scale: Annotated[float, Field(gt=0)] = Field(
+        description="entry flow = scale * LEVEL_FLOW_VEH_PER_H['medium'] (veh/h)")
+
+
+Multiplier = Annotated[float, Field(ge=DEMAND_MULTIPLIER_MIN, le=DEMAND_MULTIPLIER_MAX)]
+EntryOverrides = dict[str, Annotated[float, Field(gt=0, le=ENTRY_OVERRIDE_MAX)]]
 
 
 class DemandProfile(Model):
@@ -173,12 +179,16 @@ class DemandProfile(Model):
     created_at: datetime
     departure_time: datetime | None = None
     entries: list[DemandEntry]
+    multiplier: Multiplier = Field(default=1.0, description="global demand multiplier (v0.2.0)")
+    entry_overrides: EntryOverrides = Field(
+        default_factory=dict, description="per-entry scale factor on top of level x multiplier (v0.2.0)")
+    parent_id: str | None = Field(default=None, description="profile this one was derived from by /api/sim/demand (v0.2.0)")
 
 
 class DataStatus(Model):
     state: DataState
     message: str
-    last_update: datetime | None = Field(description="when the underlying Google data was fetched")
+    last_update: datetime | None = Field(description="when the underlying traffic data was produced; null for simulated demand")
     calls_today: Annotated[int, Field(ge=0)]
     daily_cap: Annotated[int, Field(ge=0)]
 
@@ -227,10 +237,12 @@ class HealthResponse(Model):
 class AreaRequest(Model):
     bbox: BBox
     ignore_osm_signals: bool = False
+    demo_city: bool = Field(default=False, description="ignore bbox, return the synthetic grid demo city (v0.2.0)")
 
 
 class AreaResponse(Model):
     area_id: str
+    source: AreaSource = Field(description="synthetic_grid = demo city; osm = parsed OpenStreetMap data (v0.2.0)")
     network: RoadNetwork
     intersections: list[Intersection] = Field(description="ranked: best signal candidates first")
     recommended_ids: list[str] = Field(default_factory=list, description="default selection for the UI")
@@ -249,9 +261,12 @@ class GeocodeResponse(Model):
 
 class DemandResolveRequest(Model):
     area_id: str
-    source: DemandRequestSource
+    source: DemandRequestSource = Field(
+        default="baseline", description="only 'baseline' is accepted since v0.2.0; google_* are reserved and rejected")
     level: DemandLevel | None = Field(default=None, description="baseline level; default medium")
     departure_time: datetime | None = None
+    multiplier: Multiplier = Field(default=1.0, description="global demand multiplier (v0.2.0)")
+    entry_overrides: EntryOverrides = Field(default_factory=dict, description="{entry_node_id: scale factor} (v0.2.0)")
 
 
 class DemandResolveResponse(Model):
@@ -280,6 +295,22 @@ class SimStopResponse(Model):
     session_id: str
     stopped: bool
     final_metrics: Metrics | None = None
+
+
+class SimDemandRequest(Model):
+    """Change demand of a running session (v0.2.0). Omitted fields keep the current value.
+    For split compare, send the same at_t to both sessions."""
+    session_id: str
+    level: DemandLevel | None = None
+    multiplier: Multiplier | None = None
+    entry_overrides: EntryOverrides | None = Field(default=None, description="replaces the current overrides when set")
+    at_t: NonNeg | None = Field(default=None, description="sim time to apply the change; null = next step")
+
+
+class SimDemandResponse(Model):
+    session_id: str
+    demand_profile: DemandProfile = Field(description="new frozen profile (parent_id = previous profile)")
+    applies_at_t: NonNeg
 
 
 class MetricsResponse(Model):
@@ -317,4 +348,5 @@ ALL_MODELS: list[type[BaseModel]] = [
     HealthResponse, AreaRequest, AreaResponse, GeocodeResult, GeocodeResponse,
     DemandResolveRequest, DemandResolveResponse, SimStartRequest, SimStartResponse,
     SimStopRequest, SimStopResponse, MetricsResponse, AiResetResponse, SimTick,
+    SimDemandRequest, SimDemandResponse,
 ]

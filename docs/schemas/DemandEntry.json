@@ -12,7 +12,7 @@
         }
       ],
       "default": null,
-      "description": "Google duration / staticDuration; null for baseline_only",
+      "description": "reserved for external traffic data; always null since v0.2.0",
       "title": "Congestion Ratio"
     },
     "entry_node_id": {
@@ -20,7 +20,7 @@
       "type": "string"
     },
     "scale": {
-      "description": "multiplies the base (medium) per-entry flow",
+      "description": "entry flow = scale * LEVEL_FLOW_VEH_PER_H['medium'] (veh/h)",
       "exclusiveMinimum": 0,
       "title": "Scale",
       "type": "number"

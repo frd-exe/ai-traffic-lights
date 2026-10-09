@@ -43,6 +43,12 @@
     "bbox": {
       "$ref": "#/$defs/BBox"
     },
+    "demo_city": {
+      "default": false,
+      "description": "ignore bbox, return the synthetic grid demo city (v0.2.0)",
+      "title": "Demo City",
+      "type": "boolean"
+    },
     "ignore_osm_signals": {
       "default": false,
       "title": "Ignore Osm Signals",

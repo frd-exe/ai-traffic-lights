@@ -93,9 +93,12 @@ def main() -> int:
         return 1
     secrets = [env.get("GEMINI_API_KEY", ""), env.get("GOOGLE_MAPS_API_KEY", "")]
     ok_all = True
-    for name, var, fn in (("Gemini", "GEMINI_API_KEY", check_gemini),
-                          ("Google Routes", "GOOGLE_MAPS_API_KEY", check_routes)):
+    for name, var, fn, required in (("Gemini", "GEMINI_API_KEY", check_gemini, True),
+                                    ("Google Routes", "GOOGLE_MAPS_API_KEY", check_routes, False)):
         key = env.get(var, "")
+        if not key and not required:
+            print(f"{name:14} SKIP  {var} is empty (optional: not used since contract 0.2.0)")
+            continue
         if not key:
             print(f"{name:14} FAIL  {var} is empty")
             ok_all = False

@@ -5,7 +5,7 @@ All values are SI (seconds, metres, metres/second) unless the name says otherwis
 
 from typing import Final
 
-CONTRACT_VERSION: Final = "0.1.0"
+CONTRACT_VERSION: Final = "0.2.0"
 
 # --- Signal timing (engine rules) ---
 YELLOW_S: Final = 3.0
@@ -38,14 +38,25 @@ ID_COORD_DECIMALS: Final = 5
 ID_BEARING_STEP_DEG: Final = 5
 ID_HASH_HEX_LEN: Final = 8
 
-# --- Demand mapping (heuristic, tunable) ---
-DEMAND_SCALE_MIN: Final = 0.4  # at congestion_ratio <= DEMAND_RATIO_LO
-DEMAND_SCALE_MAX: Final = 1.6  # at congestion_ratio >= DEMAND_RATIO_HI
+# --- Demand ---
+# Per-entry flow (veh/h) for each level. Entry flow = LEVEL_FLOW[level] * multiplier * entry_override.
+LEVEL_FLOW_VEH_PER_H: Final = {"low": 150.0, "medium": 300.0, "high": 500.0, "rush": 700.0}
+BASE_LEVEL: Final = "medium"  # DemandEntry.scale is relative to this level's flow
+DEMAND_MULTIPLIER_MIN: Final = 0.2
+DEMAND_MULTIPLIER_MAX: Final = 3.0
+ENTRY_OVERRIDE_MAX: Final = 5.0  # per-entry scale override, 0 < x <= this (0 not allowed: use a small value)
+# Reserved (unused since v0.2.0, no external traffic data): congestion ratio -> scale heuristic.
+DEMAND_SCALE_MIN: Final = 0.4
+DEMAND_SCALE_MAX: Final = 1.6
 DEMAND_RATIO_LO: Final = 1.0
 DEMAND_RATIO_HI: Final = 2.0
-# Base per-entry flow (veh/h) for each baseline level; google scales multiply the "medium" flow.
-LEVEL_FLOW_VEH_PER_H: Final = {"low": 150.0, "medium": 300.0, "high": 500.0, "rush": 700.0}
-BASE_LEVEL: Final = "medium"
 
-# --- Area limits ---
+# --- Areas ---
 MAX_BBOX_SIDE_M: Final = 3000.0
+GRID_AREA_ID: Final = "area_grid_mock"  # the synthetic demo city (backend/data/grid_network.json)
+CONSOLIDATE_RADIUS_M: Final = 20.0  # graph nodes closer than this are merged into one junction
+SIGNAL_SNAP_M: Final = 30.0  # an OSM traffic_signals node within this distance marks the junction as signalised
+AREA_RATE_LIMIT_PER_MIN: Final = 10  # new area computations per client per minute (cache hits are free)
+
+# --- Geocoding ---
+NOMINATIM_MIN_INTERVAL_S: Final = 1.0  # Nominatim usage policy: max 1 request/s

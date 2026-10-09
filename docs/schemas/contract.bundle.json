@@ -110,6 +110,12 @@
         "bbox": {
           "$ref": "#/$defs/BBox"
         },
+        "demo_city": {
+          "default": false,
+          "description": "ignore bbox, return the synthetic grid demo city (v0.2.0)",
+          "title": "Demo City",
+          "type": "boolean"
+        },
         "ignore_osm_signals": {
           "default": false,
           "title": "Ignore Osm Signals",
@@ -147,10 +153,20 @@
           },
           "title": "Recommended Ids",
           "type": "array"
+        },
+        "source": {
+          "description": "synthetic_grid = demo city; osm = parsed OpenStreetMap data (v0.2.0)",
+          "enum": [
+            "synthetic_grid",
+            "osm"
+          ],
+          "title": "Source",
+          "type": "string"
         }
       },
       "required": [
         "area_id",
+        "source",
         "network",
         "intersections"
       ],
@@ -279,7 +295,7 @@
               "type": "null"
             }
           ],
-          "description": "when the underlying Google data was fetched",
+          "description": "when the underlying traffic data was produced; null for simulated demand",
           "title": "Last Update"
         },
         "message": {
@@ -321,7 +337,7 @@
             }
           ],
           "default": null,
-          "description": "Google duration / staticDuration; null for baseline_only",
+          "description": "reserved for external traffic data; always null since v0.2.0",
           "title": "Congestion Ratio"
         },
         "entry_node_id": {
@@ -329,7 +345,7 @@
           "type": "string"
         },
         "scale": {
-          "description": "multiplies the base (medium) per-entry flow",
+          "description": "entry flow = scale * LEVEL_FLOW_VEH_PER_H['medium'] (veh/h)",
           "exclusiveMinimum": 0,
           "title": "Scale",
           "type": "number"
@@ -383,6 +399,16 @@
           "title": "Entries",
           "type": "array"
         },
+        "entry_overrides": {
+          "additionalProperties": {
+            "exclusiveMinimum": 0,
+            "maximum": 5.0,
+            "type": "number"
+          },
+          "description": "per-entry scale factor on top of level x multiplier (v0.2.0)",
+          "title": "Entry Overrides",
+          "type": "object"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -405,6 +431,27 @@
           "default": null,
           "description": "set for baseline_only",
           "title": "Level"
+        },
+        "multiplier": {
+          "default": 1.0,
+          "description": "global demand multiplier (v0.2.0)",
+          "maximum": 3.0,
+          "minimum": 0.2,
+          "title": "Multiplier",
+          "type": "number"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "profile this one was derived from by /api/sim/demand (v0.2.0)",
+          "title": "Parent Id"
         },
         "source": {
           "enum": [
@@ -446,6 +493,16 @@
           "default": null,
           "title": "Departure Time"
         },
+        "entry_overrides": {
+          "additionalProperties": {
+            "exclusiveMinimum": 0,
+            "maximum": 5.0,
+            "type": "number"
+          },
+          "description": "{entry_node_id: scale factor} (v0.2.0)",
+          "title": "Entry Overrides",
+          "type": "object"
+        },
         "level": {
           "anyOf": [
             {
@@ -465,7 +522,17 @@
           "description": "baseline level; default medium",
           "title": "Level"
         },
+        "multiplier": {
+          "default": 1.0,
+          "description": "global demand multiplier (v0.2.0)",
+          "maximum": 3.0,
+          "minimum": 0.2,
+          "title": "Multiplier",
+          "type": "number"
+        },
         "source": {
+          "default": "baseline",
+          "description": "only 'baseline' is accepted since v0.2.0; google_* are reserved and rejected",
           "enum": [
             "google_live",
             "google_snapshot",
@@ -476,8 +543,7 @@
         }
       },
       "required": [
-        "area_id",
-        "source"
+        "area_id"
       ],
       "title": "DemandResolveRequest",
       "type": "object"
@@ -714,7 +780,7 @@
       "additionalProperties": false,
       "properties": {
         "contract_version": {
-          "default": "0.1.0",
+          "default": "0.2.0",
           "title": "Contract Version",
           "type": "string"
         },
@@ -1171,6 +1237,110 @@
       "title": "SignalState",
       "type": "object"
     },
+    "SimDemandRequest": {
+      "additionalProperties": false,
+      "description": "Change demand of a running session (v0.2.0). Omitted fields keep the current value.\nFor split compare, send the same at_t to both sessions.",
+      "properties": {
+        "at_t": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sim time to apply the change; null = next step",
+          "title": "At T"
+        },
+        "entry_overrides": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "exclusiveMinimum": 0,
+                "maximum": 5.0,
+                "type": "number"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "replaces the current overrides when set",
+          "title": "Entry Overrides"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "rush"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Level"
+        },
+        "multiplier": {
+          "anyOf": [
+            {
+              "maximum": 3.0,
+              "minimum": 0.2,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Multiplier"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id"
+      ],
+      "title": "SimDemandRequest",
+      "type": "object"
+    },
+    "SimDemandResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "applies_at_t": {
+          "minimum": 0,
+          "title": "Applies At T",
+          "type": "number"
+        },
+        "demand_profile": {
+          "$ref": "#/$defs/DemandProfile",
+          "description": "new frozen profile (parent_id = previous profile)"
+        },
+        "session_id": {
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "demand_profile",
+        "applies_at_t"
+      ],
+      "title": "SimDemandResponse",
+      "type": "object"
+    },
     "SimStartRequest": {
       "additionalProperties": false,
       "properties": {
@@ -1404,7 +1574,7 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "AI traffic lights contract v0.1.0 (generated, do not edit)",
+  "description": "AI traffic lights contract v0.2.0 (generated, do not edit)",
   "properties": {
     "AiResetResponse": {
       "$ref": "#/$defs/AiResetResponse"
@@ -1492,6 +1662,12 @@
     },
     "SignalState": {
       "$ref": "#/$defs/SignalState"
+    },
+    "SimDemandRequest": {
+      "$ref": "#/$defs/SimDemandRequest"
+    },
+    "SimDemandResponse": {
+      "$ref": "#/$defs/SimDemandResponse"
     },
     "SimStartRequest": {
       "$ref": "#/$defs/SimStartRequest"
