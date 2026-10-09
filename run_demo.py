@@ -197,11 +197,11 @@ def run_check(base: str, mock: bool, scenario: str | None, seconds: float) -> li
     cs = ai_last["controller_status"]
     expect_limit = (os.environ.get("GEMINI_FAKE_FAIL", "").lower() in ("limit", "429")) or (mock and scenario == "ai_limit")
     if expect_limit:
-        check(cs["state"] == "ai_limit_reached" and cs["effective_controller"] == "fixed",
-              f"AI limit: banner state {cs['state']}, signals on {cs['effective_controller']} timers")
-        check(cs["message"].startswith("AI limit reached: signals reverted to traditional fixed timers"),
+        check(cs["state"] == "ai_limit_reached" and cs["effective_controller"] == "max_pressure",
+              f"AI limit: state {cs['state']}, adaptive fallback ({cs['effective_controller']})")
+        check(cs["message"] == "Live AI quota reached. Using adaptive fallback.",
               f"AI limit banner text: '{cs['message']}'")
-        check(bool(ai_last["signals"]), "AI session still shows live signals (fixed timers)")
+        check(bool(ai_last["signals"]), "AI session still shows live signals (adaptive fallback)")
     else:
         say(f"INFO AI session state: {cs['state']} ({cs['message']})")
     for sid in sids.values():

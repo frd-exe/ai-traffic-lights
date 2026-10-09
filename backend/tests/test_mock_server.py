@@ -163,8 +163,9 @@ def test_ws_unknown_session(client):
 
 @pytest.mark.parametrize("scenario,check", [
     ("ai_limit", lambda t: t.controller_status.state == "ai_limit_reached"
-        and t.controller_status.effective_controller == "fixed"
-        and t.metrics.effective_controller == "fixed"),
+        and t.controller_status.effective_controller == "max_pressure"
+        and t.controller_status.message == "Live AI quota reached. Using adaptive fallback."
+        and t.metrics.effective_controller == "max_pressure"),
     ("ai_replay", lambda t: t.controller_status.state == "ai_replay"),
 ])
 def test_ws_scenarios_switch(client, monkeypatch, scenario, check):

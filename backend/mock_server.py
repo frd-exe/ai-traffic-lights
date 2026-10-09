@@ -6,7 +6,7 @@ Areas, siting and demand use the real code (backend/area, backend/siting, backen
 synthetic grid; only the simulation is faked.
 
 Scenarios (WS query ?scenario=..., POST /api/sim/start?scenario=..., or env MOCK_SCENARIO):
-    ai_limit     after ~20 sim-s an `ai` session switches to ai_limit_reached / fixed timers
+    ai_limit     after ~20 sim-s an `ai` session switches to ai_limit_reached / adaptive (max-pressure) fallback
     ai_replay    after ~20 sim-s an `ai` session switches to ai_replay
 The switch time is MOCK_SWITCH_AFTER_S (env, default 20).
 """
@@ -68,6 +68,7 @@ from backend.contract.models import (
     SitingResult,
     Vehicle,
 )
+from backend.control.ai_gemini import LIMIT_MESSAGE
 from backend.roadnet.geo import bearing_deg
 from backend.roadnet.sim_siting import SitingCache
 from backend.static_frontend import mount_frontend
@@ -169,8 +170,7 @@ def controller_status(s: Session, t: float) -> ControllerStatus:
     sw = switch_after_s()
     if _switched(s, t, "ai_limit"):
         return ControllerStatus(
-            state="ai_limit_reached", effective_controller="fixed",
-            message=f"AI limit reached: signals reverted to traditional fixed timers (since t={sw:.0f} s)",
+            state="ai_limit_reached", effective_controller="max_pressure", message=LIMIT_MESSAGE,
             since_t=sw, calls_last_min=0, calls_today=GEMINI_DAILY_CAP, daily_cap=GEMINI_DAILY_CAP)
     if _switched(s, t, "ai_replay"):
         return ControllerStatus(
@@ -262,7 +262,7 @@ def explanations_between(s: Session, t0: float, t1: float) -> list[Explanation]:
     if t0 < sw <= t1 and s.req.mode == "ai":
         if s.scenario == "ai_limit":
             out.append(Explanation(t=sw, intersection_id=None,
-                                   text="AI limit reached: signals reverted to traditional fixed timers"))
+                                   text=LIMIT_MESSAGE))
         elif s.scenario == "ai_replay":
             out.append(Explanation(t=sw, intersection_id=None, text="Switched to AI replay (recorded plans)"))
     for at_t, p in s.demand_changes:

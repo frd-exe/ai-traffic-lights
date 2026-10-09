@@ -2,14 +2,14 @@ import type { ControllerStatus, DataStatus } from "./types/contract.gen";
 
 export type Banner = { level: "warn" | "info"; text: string };
 
-/** Banner text for controller fallbacks (wording fixed by docs/CONTRACT.md "AI limit behavior"). */
+/** Banner text for controller fallbacks (wording fixed by docs/CONTRACT.md "AI limit behavior", 0.4.0):
+ *  the AI side falls back to adaptive max-pressure control; fixed timers only as a last resort. */
 export function controllerBanner(cs: ControllerStatus): Banner | null {
-  const since = `since t=${Math.round(cs.since_t)} s`;
   switch (cs.state) {
     case "ai_limit_reached":
-      return { level: "warn", text: `AI limit reached: signals reverted to traditional fixed timers (${since})` };
+      return { level: "warn", text: cs.effective_controller === "fixed" ? cs.message : "Live AI quota reached. Using adaptive fallback." };
     case "ai_unavailable":
-      return { level: "warn", text: `AI unavailable: signals reverted to traditional fixed timers (${since}). ${cs.message}` };
+      return { level: "warn", text: cs.effective_controller === "fixed" ? cs.message : "AI unavailable. Using adaptive fallback." };
     default:
       return null;
   }

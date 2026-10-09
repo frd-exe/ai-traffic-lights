@@ -1,7 +1,7 @@
 /* Generated from docs/schemas/contract.bundle.json by `npm run gen:types`. Do not edit. */
 
 /**
- * AI traffic lights contract v0.3.1 (generated, do not edit)
+ * AI traffic lights contract v0.4.0 (generated, do not edit)
  */
 export interface Contract {
   AiResetResponse?: AiResetResponse;

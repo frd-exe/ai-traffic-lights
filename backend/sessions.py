@@ -21,7 +21,14 @@ from dataclasses import dataclass, field
 from backend.ai.gemini_client import GeminiClient
 from backend.ai.replay import PlanRecorder, PlanReplay
 from backend.api_common import ApiError
-from backend.contract.constants import CONTROLLER_PERIOD_S, FIXED_PHASE_S, SIM_DT_S, WS_HZ
+from backend.contract.constants import (
+    AI_SESSION_MAX_CALLS,
+    CONTROLLER_PERIOD_S,
+    FIXED_PHASE_S,
+    LIVE_AI_INTERVAL_S,
+    SIM_DT_S,
+    WS_HZ,
+)
 from backend.contract.models import (
     AreaResponse,
     ControllerStatus,
@@ -131,10 +138,12 @@ class Session:
 
 
 class SessionManager:
-    def __init__(self, demand: DemandStore, client: GeminiClient | None, record_path=None, replay_path=None):
+    def __init__(self, demand: DemandStore, client: GeminiClient | None, record_path=None, replay_path=None,
+                 live_interval_s: float = LIVE_AI_INTERVAL_S, max_calls: int | None = AI_SESSION_MAX_CALLS):
         self.sessions: dict[str, Session] = {}
         self.demand, self.client = demand, client
         self.record_path, self.replay_path = record_path, replay_path
+        self.live_interval_s, self.max_calls = live_interval_s, max_calls
 
     def get(self, sid: str) -> Session:
         s = self.sessions.get(sid)
@@ -160,7 +169,8 @@ class SessionManager:
                 raise ApiError(503, "ai_not_configured", "AI mode needs GEMINI_API_KEY (or a replay file)")
             ai = GeminiSupervisorController(self.client if replay is None else None, seed=req.seed,
                                             recorder=PlanRecorder(self.record_path) if self.record_path else None,
-                                            replay=replay, session_label=sid)
+                                            replay=replay, session_label=sid, interval_s=self.live_interval_s,
+                                            max_calls=self.max_calls)
         controller = make_controller(req.mode, engine, ai)
         s = Session(session_id=sid, req=req, area=area, engine=engine, controller=controller,
                     safety=SafetyLayer(engine.phases), client=self.client)

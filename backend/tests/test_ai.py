@@ -172,29 +172,59 @@ def test_daily_cap_blocks_before_network(tmp_path):
 
 
 # ------------------------------------------------------------------ supervisor: limit behavior
-def test_limit_falls_back_to_fixed_with_all_notifications(caplog, capsys):
+def test_limit_falls_back_to_adaptive_with_all_notifications(caplog, capsys):
     ctl = supervisor(client(fake="limit"))
     ctl.decide(obs(t=42.0))
     with caplog.at_level(logging.WARNING, logger="backend.ai"):
         call(ctl, obs(t=42.0))
     st = ctl.status()
-    assert st.state == "ai_limit_reached" and st.effective_controller == "fixed" and st.since_t == 42.0
-    assert st.message == "AI limit reached: signals reverted to traditional fixed timers (since t=42 s)"
+    assert st.state == "ai_limit_reached" and st.effective_controller == "max_pressure" and st.since_t == 42.0
+    assert st.message == "Live AI quota reached. Using adaptive fallback."
     ex = ctl.drain_explanations()
-    assert ex and ex[-1].intersection_id is None and "AI limit reached" in ex[-1].text
+    assert ex and ex[-1].intersection_id is None and ex[-1].text == "Live AI quota reached. Using adaptive fallback."
     assert "[AI fallback]" in caplog.text and "trigger=limit" in caplog.text
     assert "[AI fallback]" in capsys.readouterr().out
     assert KEY not in caplog.text
-    # fixed timers now drive the junction (fresh FixedController requests the next phase)
-    assert ctl.decide(obs(t=43.0, in_phase=40)) == {"i": "i:p1"}
+    # adaptive (max-pressure) now drives the junction, NOT fixed timers:
+    assert ctl.decide(obs(t=43.0, in_phase=40)) == {"i": "i:p0"}  # empty junction: hold (fixed would switch)
+    assert ctl.decide(obs(t=44.0, in_phase=40, veh={"a_e": 20})) == {"i": "i:p1"}  # busy approach: serve it
 
 
 @pytest.mark.parametrize("fake", ["invalid"])
-def test_invalid_key_is_immediate_unavailable(fake):
+def test_invalid_key_is_immediate_unavailable_with_adaptive_fallback(fake):
     ctl = supervisor(client(fake=fake))
     call(ctl, obs())
     assert ctl.state == "ai_unavailable" and ctl.fallback_reason == "invalid_key"
-    assert ctl.message().startswith("AI unavailable: signals reverted to traditional fixed timers")
+    assert ctl.message() == "AI unavailable. Using adaptive fallback."
+    assert ctl.effective_controller == "max_pressure"
+
+
+def test_session_call_cap_switches_to_adaptive_without_probing():
+    c = client(lambda r: gemini_ok([]))
+    ctl = supervisor(c, max_calls=3)
+    for k in range(3):
+        assert ctl.due_request(k * 100.0)
+        call(ctl, obs(t=k * 15.0), now=k * 100.0)
+    assert ctl.calls_made == 3 and ctl.state == "ai_active"
+    ctl.decide(obs(t=60.0))
+    assert not ctl.due_request(1000.0)  # 4th call refused -> quota fallback
+    st = ctl.status()
+    assert st.state == "ai_limit_reached" and st.message == "Live AI quota reached. Using adaptive fallback."
+    assert ctl.fallback_reason == "session_cap" and ctl.effective_controller == "max_pressure"
+    assert not any(ctl.due_probe(now) for now in (2000.0, 5000.0, 9000.0))  # no probing after the session cap
+
+
+def test_fixed_timers_only_as_last_resort(monkeypatch):
+    ctl = supervisor(client(fake="limit"))
+    call(ctl, obs(t=10.0))
+    assert ctl.effective_controller == "max_pressure"
+
+    def broken(_obs):
+        raise RuntimeError("adaptive controller crashed")
+
+    monkeypatch.setattr(ctl.adaptive, "decide", broken)
+    assert ctl.decide(obs(t=11.0, in_phase=40)) == {"i": "i:p1"}  # fresh FixedController takes over
+    assert ctl.effective_controller == "fixed" and "last resort" in ctl.message()
 
 
 def test_three_consecutive_failures_rule():

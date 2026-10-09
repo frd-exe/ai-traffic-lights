@@ -129,10 +129,20 @@ def test_ai_session_fallback_through_real_wiring(app_client, fake, state):
         for tick in _ticks(c, sid, lambda t: t.controller_status.state == state, limit=400):
             notices += [e for e in tick.explanations if e.intersection_id is None]
         cs = tick.controller_status
-        assert cs.state == state and cs.effective_controller == "fixed" and cs.since_t >= 0
-        assert cs.message.startswith(("AI limit reached", "AI unavailable"))
-        assert tick.metrics.mode == "ai" and tick.metrics.effective_controller == "fixed"
-        assert notices and "signals reverted to traditional fixed timers" in notices[-1].text
+        assert cs.state == state and cs.effective_controller == "max_pressure" and cs.since_t >= 0
+        assert cs.message in ("Live AI quota reached. Using adaptive fallback.", "AI unavailable. Using adaptive fallback.")
+        assert tick.metrics.mode == "ai" and tick.metrics.effective_controller == "max_pressure"
+        assert notices and "Using adaptive fallback." in notices[-1].text
+        assert tick.signals  # junctions keep running
+
+
+def test_live_ai_session_defaults_interval_15s_and_40_calls(app_client):
+    with app_client({"GEMINI_FAKE_FAIL": "timeout"}) as c:
+        area, pid = _setup(c)
+        sid = _start(c, "ai", pid, area, speed=1)
+        ctl = c.app.state.sessions.sessions[sid].controller
+        assert ctl.interval_s == 15.0 and ctl.max_calls == 40
+        c.post("/api/sim/stop", json={"session_id": sid})
 
 
 def test_ai_reset_endpoint_resumes_daily_cap_sessions(app_client):

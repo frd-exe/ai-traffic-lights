@@ -33,4 +33,4 @@ the user selects junctions → `POST /api/demand/resolve` (a frozen DemandProfil
 **State on disk** (`backend/data/state/`, gitignored): `areas/<area_id>.json`, `demand/<id>.json`,
 `geocode_cache.json`. The server never calls Overpass; OSM data comes only from `scripts/fetch_sample_area.py`.
 
-**Fallbacks:** AI → fixed timers with a banner (CONTRACT §9); no OSM sample → demo city.
+**Fallbacks:** AI limit/quota/unavailable → adaptive max-pressure with a banner, fixed timers only as the last resort (CONTRACT §9); no OSM sample → demo city.

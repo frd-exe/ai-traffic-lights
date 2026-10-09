@@ -24,3 +24,11 @@ backend/data/state/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Gemini daily call counter (graders must start at 0)
+usage.json
+backend/data/state/usage.json
+
+# release artifacts (contain a copied .env)
+release/
+

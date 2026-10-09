@@ -45,8 +45,8 @@ test("follows bent geometry and handles a connected edge transition without cutt
 });
 
 test("fallback wording and daily cap reset eligibility are driven by status", () => {
-  const limit = { ...active, state: "ai_limit_reached", effective_controller: "fixed", since_t: 20, calls_today: 500 } satisfies ControllerStatus;
-  expect(controllerBanner(limit)?.text).toContain("AI limit reached: signals reverted to traditional fixed timers (since t=20 s)");
+  const limit = { ...active, state: "ai_limit_reached", effective_controller: "max_pressure", since_t: 20, calls_today: 500 } satisfies ControllerStatus;
+  expect(controllerBanner(limit)?.text).toBe("Live AI quota reached. Using adaptive fallback.");
   expect(dailyCapFallback(limit)).toBeTruthy();
   expect(dailyCapFallback({ ...limit, calls_today: 12 })).toBeFalsy();
   expect(dailyCapFallback({ ...limit, state: "ai_unavailable" })).toBeFalsy();

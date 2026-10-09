@@ -12,12 +12,15 @@ Design
 - Plan executor: a plan holds `phase` for AT MOST hold_s sim-seconds. It ends early when
   max-pressure's best phase beats the plan's phase by more than EARLY_TERMINATION_GAIN vehicles
   (the plan is clearly stale). On expiry the intersection returns to max-pressure.
-- Limit fallback: daily cap / 429 -> ai_limit_reached; invalid key / >= 3 consecutive failed calls
-  -> ai_unavailable. One failed call is NOT a trigger. On trigger: fresh FixedController (30 s per
-  phase; the engine performs the safe yellow/all-red transition), ControllerStatus updated,
-  session-wide Explanation, WARNING log + console print. Probe every AI_PROBE_INTERVAL_S and
-  resume after one success, except after a daily-cap fallback: then resume only when the budget is
-  available again (next UTC day, or POST /api/ai/reset).
+- Limit fallback (contract 0.4.0): daily cap / 429 / the per-session live-call cap (max_calls,
+  default 40 in live sessions) -> ai_limit_reached, "Live AI quota reached. Using adaptive fallback.";
+  invalid key / >= 3 consecutive failed calls -> ai_unavailable. One failed call is NOT a trigger.
+  On trigger the junctions switch to ADAPTIVE control (max-pressure; the engine performs any safe
+  yellow/all-red transition); fixed timers are only the last resort if the adaptive controller
+  itself fails. ControllerStatus updated, session-wide Explanation, WARNING log + console print.
+  Probe every AI_PROBE_INTERVAL_S and resume after one success, except after a daily-cap or
+  session-cap fallback: daily cap resumes only when the budget is available again (next UTC day, or
+  POST /api/ai/reset); the session cap never resumes within that session.
 - Replay: with a PlanReplay, plans come from a recording, no API calls; state = ai_replay.
 """
 
@@ -42,6 +45,8 @@ from .max_pressure import MaxPressureController, best_phase, phase_pressures
 
 log = logging.getLogger("backend.ai")
 EARLY_TERMINATION_GAIN = 15.0  # vehicles: max-pressure must beat the planned phase by this much
+LIMIT_MESSAGE = "Live AI quota reached. Using adaptive fallback."
+UNAVAILABLE_MESSAGE = "AI unavailable. Using adaptive fallback."
 State = Literal["ai_active", "ai_limit_reached", "ai_unavailable", "ai_replay"]
 
 
@@ -84,14 +89,18 @@ class GeminiSupervisorController:
         recorder: PlanRecorder | None = None,
         replay: PlanReplay | None = None,
         session_label: str = "",
+        max_calls: int | None = None,
     ):
         if client is None and replay is None:
             raise ValueError("need a GeminiClient or a PlanReplay")
         self.client, self.seed, self.recorder, self.replay = client, seed, recorder, replay
         self.interval_s = max(interval_s, GEMINI_MIN_INTERVAL_S) if replay is None else interval_s
         self.probe_interval_s, self.early_gain, self.label = probe_interval_s, early_gain, session_label
+        self.max_calls = max_calls  # live calls per session (incl. probes); None = unlimited
+        self.calls_made = 0
         self.mp = MaxPressureController()
-        self.fixed: FixedController | None = None
+        self.adaptive = MaxPressureController()  # fallback when the AI is limited / unavailable
+        self.fixed: FixedController | None = None  # last resort only: if the adaptive fallback itself fails
         self.state: State = "ai_replay" if replay is not None else "ai_active"
         self.fallback_reason: str | None = None  # "daily_cap" | "limit" | "invalid_key" | "failures"
         self.since_t = 0.0
@@ -114,15 +123,18 @@ class GeminiSupervisorController:
 
     @property
     def effective_controller(self) -> str:
-        return "fixed" if self.in_fallback else "gemini+max_pressure"
+        if not self.in_fallback:
+            return "gemini+max_pressure"
+        return "fixed" if self.fixed is not None else "max_pressure"
 
     def message(self) -> str:
-        since = f"since t={self.since_t:.0f} s"
+        if self.in_fallback and self.fixed is not None:
+            return "AI fallback failed: signals on traditional fixed timers (last resort)"
         return {
             "ai_active": "AI active: Gemini supervisor + max-pressure",
             "ai_replay": "AI replay: replaying recorded Gemini plans (no live calls)",
-            "ai_limit_reached": f"AI limit reached: signals reverted to traditional fixed timers ({since})",
-            "ai_unavailable": f"AI unavailable: signals reverted to traditional fixed timers ({since})",
+            "ai_limit_reached": LIMIT_MESSAGE,
+            "ai_unavailable": UNAVAILABLE_MESSAGE,
         }[self.state]
 
     def status(self) -> ControllerStatus:
@@ -148,8 +160,7 @@ class GeminiSupervisorController:
                     and self.client is not None and self.client.usage.allowed():
                 self._resume(t, "daily budget available again")
             if self.in_fallback:
-                assert self.fixed is not None
-                return self.fixed.decide(observation)
+                return self._fallback_decide(observation)
             commands = self.mp.decide(observation)
             for iid, plan in list(self.plans.items()):
                 st = observation.intersections.get(iid)
@@ -169,22 +180,44 @@ class GeminiSupervisorController:
                 commands[iid] = plan.phase
             return commands
 
+    def _fallback_decide(self, observation: Observation) -> dict[str, str]:
+        """Adaptive fallback (max-pressure); fixed timers only if the adaptive controller fails."""
+        if self.fixed is None:
+            try:
+                return self.adaptive.decide(observation)
+            except Exception:  # noqa: BLE001 - last resort must never take the junctions down
+                log.exception("adaptive fallback failed in session %s; using fixed timers (last resort)", self.label)
+                self.fixed = FixedController()
+                self._explain(observation.t, None, self.message())
+        return self.fixed.decide(observation)
+
     # ---------------------------------------------------------------- scheduling (session calls these)
+    def _session_cap_reached(self) -> bool:
+        return self.max_calls is not None and self.calls_made >= self.max_calls
+
     def due_request(self, now: float) -> bool:
         with self._lock:
             if self.in_flight or self.in_fallback:
+                return False
+            if self._session_cap_reached():
+                self._trigger(self._t, "ai_limit_reached", "session_cap",
+                              f"{self.max_calls} live calls used in this session")
                 return False
             return self.last_request is None or now - self.last_request >= self.interval_s - 1e-9
 
     def due_probe(self, now: float) -> bool:
         with self._lock:
-            if self.in_flight or not self.in_fallback or self.fallback_reason == "daily_cap":
+            if self.in_flight or not self.in_fallback or self.fallback_reason in ("daily_cap", "session_cap"):
+                return False
+            if self._session_cap_reached():
                 return False
             return self.last_probe is None or now - self.last_probe >= self.probe_interval_s - 1e-9
 
     async def request(self, observation: Observation, now: float) -> None:
         """One supervisor call (or one probe while in fallback). Never raises."""
         with self._lock:
+            if self.replay is None:
+                self.calls_made += 1
             probing = self.in_fallback
             if probing:
                 self.last_probe = now
@@ -245,7 +278,7 @@ class GeminiSupervisorController:
         self.state, self.fallback_reason, self.since_t = state, reason, t
         if self.limit_reached_at_t is None:
             self.limit_reached_at_t = t
-        self.fixed = FixedController()  # attaches safely: engine runs yellow/all-red
+        self.fixed = None  # adaptive (max-pressure) fallback; the engine keeps clearance/min-green safety
         self.plans.clear()
         self.last_probe = None if reason == "daily_cap" else self.last_request
         self._explain(t, None, self.message())

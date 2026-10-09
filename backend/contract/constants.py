@@ -5,7 +5,7 @@ All values are SI (seconds, metres, metres/second) unless the name says otherwis
 
 from typing import Final
 
-CONTRACT_VERSION: Final = "0.3.1"
+CONTRACT_VERSION: Final = "0.4.0"
 
 # --- Signal timing (engine rules) ---
 YELLOW_S: Final = 3.0
@@ -29,6 +29,8 @@ THROUGHPUT_WINDOW_S: Final = 60.0
 # --- AI limit / fallback ---
 AI_CONSECUTIVE_FAILURE_LIMIT: Final = 3
 AI_PROBE_INTERVAL_S: Final = 60.0  # wall-clock
+LIVE_AI_INTERVAL_S: Final = 15.0  # live sessions: wall-clock seconds between Gemini calls (0.4.0)
+AI_SESSION_MAX_CALLS: Final = 40  # live sessions: max Gemini calls per session, then adaptive fallback (0.4.0)
 
 # --- Google data ---
 GOOGLE_CACHE_TTL_S: Final = 1800.0  # 30 min

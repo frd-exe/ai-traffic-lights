@@ -42,7 +42,7 @@ export default function Dashboard({ runs, points }: { runs: Run[]; points: Chart
   });
   return <section className="chart-card" aria-label="Simulated average wait chart">
     <div className="section-heading"><h2>Average wait over time <span>SIMULATED</span></h2>
-      <div className="chart-legend">{runs.map((r, i) => <span key={r.id}><i style={{ background: i ? "#4ddbc2" : "#b2bdcf" }} />{MODE_NAMES[r.mode]}</span>)}<span>┄ Fixed fallback</span></div></div>
+      <div className="chart-legend">{runs.map((r, i) => <span key={r.id}><i style={{ background: i ? "#4ddbc2" : "#b2bdcf" }} />{MODE_NAMES[r.mode]}</span>)}<span>┄ Adaptive fallback</span></div></div>
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Average stopped time in seconds, plotted against shared simulation time">
       {[0, 0.5, 1].map(f => <g key={f}><line x1={left} x2={width - right} y1={y(maxWait * f)} y2={y(maxWait * f)} stroke="#293544" strokeDasharray="3 5" /><text x={left - 8} y={y(maxWait * f) + 4} textAnchor="end">{(maxWait * f).toFixed(0)}</text></g>)}
       {[0, 0.25, 0.5, 0.75, 1].map(f => <text key={f} x={x(start + (end - start) * f)} y={height - 10} textAnchor="middle">{(start + (end - start) * f).toFixed(0)}s</text>)}

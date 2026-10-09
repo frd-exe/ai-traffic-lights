@@ -1,6 +1,6 @@
 # Contract
 
-**contract_version: 0.3.1**
+**contract_version: 0.4.0**
 
 Machine-readable source of truth: `backend/contract/models.py` (pydantic v2), exported to
 `docs/schemas/*.json` (`python scripts/export_schemas.py`; `--check` in CI/pytest). Frontend
@@ -12,6 +12,7 @@ and this file gets fixed.
 
 | version | date | change |
 |---|---|---|
+| 0.4.0 | 2026-10-09 | **Behaviour change (owner-approved):** on AI limit / quota / unavailability the AI side switches to the **adaptive fallback** (`effective_controller = max_pressure`) instead of fixed timers; banner `Live AI quota reached. Using adaptive fallback.` (unavailable: `AI unavailable. Using adaptive fallback.`). Fixed timers only as the last resort. New trigger: per-session cap `AI_SESSION_MAX_CALLS` = 40 live calls. Live supervisor interval `LIVE_AI_INTERVAL_S` = 15 s. No schema change. |
 | 0.3.1 | 2026-10-09 | Docs/behaviour clarifications, no schema change: refine sets `recommended_ids` to the simulation **top 3** (was: greedy picks only); unsignalised junctions resolve all-way standoffs by letting the longest-waiting head go (engine bug fix); default Gemini model `gemini-3.5-flash-lite` (2.5-flash is no longer offered), Gemini 3 models use `thinkingLevel=low`. |
 | 0.3.0 | 2026-10-09 | **Observation:** `ApproachObservation.vehicles` (all vehicles on the in-edge) and `.downstream_vehicles` (mean count on the approach's out-edges), both optional with default 0, used by max-pressure. **Siting:** new `SitingResult` model; `POST /api/area/{area_id}/refine?seed=&level=` (starts or returns simulation-based siting, never blocks) and `GET` on the same path (status/result); when done, the area's `sim_gain_s` are filled and `recommended_ids` becomes the simulation top 3 (greedy picks first, then by `sim_gain_s`). **Real backend** now implements `/api/sim/start`, `/stop`, `/demand`, `/api/metrics`, `/ws/sim`, `/api/ai/reset`. |
 | 0.3.0 | 2026-10-09 | **Value change (owner-approved):** `LEVEL_FLOW_VEH_PER_H` retuned from 150/300/500/700 to **120/200/280/380** veh/h per entry, so low/medium sit under capacity, high is near it and rush is visibly over it without gridlock on the demo city (docs/results.md). `SimEngine.set_demand` now works mid-run (`at_t` ≥ current t), not only before start. **Clarifications** (Codex requests, no schema change): `deadlocks` also counts local mutual-blocking cycles stuck > 120 s; `blocked_spawns` counts each deferred vehicle once; teleported vehicles stay in the metric population for 120 s but never count as throughput; a phase's green is approach permission, crossings are arbitrated per movement by the engine; junctions with > 5 mutually exclusive phases keep clearance/min green and may exceed the 60 s max-red bound. |
@@ -66,7 +67,9 @@ should regenerate types.
 | `ALL_RED_S` | 2 | all-red clearance |
 | `MIN_GREEN_S` | 7 | minimum green |
 | `MAX_RED_S` | 60 | no approach waits on red longer than this |
-| `FIXED_PHASE_S` | 30 | green per phase for fixed timers / AI fallback |
+| `FIXED_PHASE_S` | 30 | green per phase for fixed timers (Fixed side; AI last resort) |
+| `LIVE_AI_INTERVAL_S` | 15 | live Gemini call interval (wall-clock) |
+| `AI_SESSION_MAX_CALLS` | 40 | live Gemini calls per session before the adaptive fallback |
 | `SIM_DT_S` | 0.1 | engine step |
 | `CONTROLLER_PERIOD_S` | 1 | controller cadence (sim-s) |
 | `WS_HZ` | 5 | tick rate |
@@ -275,42 +278,43 @@ class Supervisor(Protocol):               # LLM
 
 ## 9. AI limit behavior
 
-**Triggers** (any one switches an `ai` session to fixed timers):
+**Triggers** (any one switches an `ai` session to the adaptive fallback; since 0.4.0):
 1. Our daily cap reached (`calls_today >= GEMINI_DAILY_CAP`), checked before each call → `ai_limit_reached`.
 2. Gemini HTTP 429 / `RESOURCE_EXHAUSTED` → `ai_limit_reached`.
-3. Invalid or missing API key (HTTP 400/401/403 with an `API_KEY_INVALID` / `PERMISSION_DENIED` reason) → `ai_unavailable`.
-4. ≥ 3 consecutive failed calls (timeout, 5xx, network error, output that fails `Plan` validation) → `ai_unavailable`.
+3. The live session used its `AI_SESSION_MAX_CALLS` (40) Gemini calls → `ai_limit_reached` (0.4.0).
+4. Invalid or missing API key (HTTP 400/401/403 with an `API_KEY_INVALID` / `PERMISSION_DENIED` reason) → `ai_unavailable`.
+5. ≥ 3 consecutive failed calls (timeout, 5xx, network error, output that fails `Plan` validation) → `ai_unavailable`.
 
 **A single failed call is NOT a trigger.** The plan executor keeps running on max-pressure plus the
 last valid plans until they expire; the failure counter resets after any successful call.
 
-**On trigger:**
-- The session's effective controller becomes `fixed` (30 s per phase). The switch goes through the
-  engine's normal safe transition: any green turns yellow (3 s) then all-red (2 s) before the
-  fixed-timer phase starts; min green is respected. No signal jumps green→red.
-- `ControllerStatus` = `{state: ai_limit_reached | ai_unavailable, effective_controller: "fixed",
-  message, since_t: <sim t of the switch>, …}`. `Metrics.effective_controller` = `fixed` from then on
-  (`Metrics.mode` stays `ai`).
+**On trigger (0.4.0):**
+- The session's effective controller becomes **`max_pressure` (adaptive fallback)**, not fixed timers.
+  Phase changes still go through the engine's safe transition (yellow 3 s, all-red 2 s, min green).
+  **Fixed timers (30 s per phase) are only the last resort**, used if the adaptive controller itself
+  fails; they otherwise appear only on the Fixed side of a comparison.
+- `ControllerStatus` = `{state: ai_limit_reached | ai_unavailable, effective_controller: "max_pressure"
+  (or "fixed" only in the last-resort case), message, since_t: <sim t of the switch>, …}`.
+  `Metrics.effective_controller` follows it (`Metrics.mode` stays `ai`).
 
 **Notifications (all of them):**
-- Frontend banner, persistent while the state holds:
-  `AI limit reached: signals reverted to traditional fixed timers (since t=<since_t> s)`
-  (for `ai_unavailable`: `AI unavailable: signals reverted to traditional fixed timers (since t=… s)`).
+- Frontend banner, persistent while the state holds: **`Live AI quota reached. Using adaptive fallback.`**
+  (for `ai_unavailable`: `AI unavailable. Using adaptive fallback.`). `since_t` is shown separately.
 - A one-time toast per session per transition.
 - An explanation-feed entry (`Explanation` with `intersection_id = null`).
 - Backend `WARNING` log line and a console message (`print`) naming the session, the trigger and the counters.
-
 **Recovery:**
-- For triggers 2–4: probe Gemini every 60 s wall-clock (one minimal call, counted against the cap).
+- For triggers 2, 4 and 5: probe Gemini every 60 s wall-clock (one minimal call, counted against the cap).
   After **one** successful call, resume AI (`ai_active`, `gemini+max_pressure`) via the same safe
   transition, with banner removal, a toast and an explanation entry.
+- After a **session-cap** fallback (trigger 3): no probing; that session stays adaptive.
 - After a **daily-cap** fallback (trigger 1): no probing. Resume only after the counter rolls over
   (next UTC day) or via `POST /api/ai/reset`, which resets our counter and lets running sessions resume
   at their next controller tick.
-- The daily counter is persisted (`backend/data/state/usage.json`) so restarts don't reset it.
+- The daily counter is persisted (`backend/data/state/usage.json`, gitignored and excluded from the release ZIP so a fresh install starts at 0) so restarts don't reset it.
 
 **Implementation (`backend/control/ai_gemini.py`, `backend/ai/gemini_client.py`):**
-- Live sessions: one async, non-blocking call every `GEMINI_MIN_INTERVAL_S` (default 6 s) of **wall** time;
+- Live sessions: one async, non-blocking call every `LIVE_AI_INTERVAL_S` (15 s, env `GEMINI_LIVE_INTERVAL_S`, never below `GEMINI_MIN_INTERVAL_S` = 6 s) of **wall** time, at most `AI_SESSION_MAX_CALLS` (40, env `GEMINI_SESSION_MAX_CALLS`) per session;
   never per tick, not faster at higher sim speed; at most one call in flight; 8 s timeout, one retry for
   timeout/5xx/invalid output (the pair counts as ONE call for the 3-failure rule). Headless experiments use a
   **sim-time** interval (default 20 sim-s).

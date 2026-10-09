@@ -52,10 +52,10 @@ test("Fixed vs AI split with live metrics, then a Surge at the same at_t in both
   await shot(page, "split-demo");
 });
 
-test("AI limit: banner, toast, fixed fallback, stream keeps running", async ({ page }) => {
+test("AI limit: banner, toast, adaptive fallback, stream keeps running", async ({ page }) => {
   await open(page, "ai_limit");
   await startSplit(page);
-  await expect(page.getByTestId("ai-banner")).toContainText("AI limit reached: signals reverted to traditional fixed timers", { timeout: 30000 });
+  await expect(page.getByTestId("ai-banner")).toContainText("Live AI quota reached. Using adaptive fallback.", { timeout: 30000 });
   await expect(page.getByTestId("fallback-toast")).toBeVisible();
   const before = Number((await page.getByTestId("session-time-1").textContent())!.match(/[\d.]+/)![0]);
   await expect.poll(async () => Number((await page.getByTestId("session-time-1").textContent())!.match(/[\d.]+/)![0]))

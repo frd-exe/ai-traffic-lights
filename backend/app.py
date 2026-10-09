@@ -23,7 +23,13 @@ from fastapi import FastAPI, Query, Request, Response, WebSocket, WebSocketDisco
 from backend.ai.gemini_client import GeminiClient
 from backend.api_common import ApiError, install_error_handlers
 from backend.area.service import AreaService
-from backend.contract.constants import AREA_RATE_LIMIT_PER_MIN, GRID_AREA_ID, WS_HZ
+from backend.contract.constants import (
+    AI_SESSION_MAX_CALLS,
+    AREA_RATE_LIMIT_PER_MIN,
+    GRID_AREA_ID,
+    LIVE_AI_INTERVAL_S,
+    WS_HZ,
+)
 from backend.contract.models import (
     AiResetResponse,
     AreaRequest,
@@ -102,7 +108,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         url=s.nominatim_url)
     client = GeminiClient.from_env(s.state_dir, s.env, transport=s.gemini_transport)
     rec, rep = s.env.get("AI_RECORD"), s.env.get("AI_REPLAY")
-    sessions = SessionManager(demand, client, Path(rec) if rec else None, Path(rep) if rep else None)
+    max_calls = int(s.env.get("GEMINI_SESSION_MAX_CALLS") or AI_SESSION_MAX_CALLS)
+    sessions = SessionManager(demand, client, Path(rec) if rec else None, Path(rep) if rep else None,
+                              live_interval_s=float(s.env.get("GEMINI_LIVE_INTERVAL_S") or LIVE_AI_INTERVAL_S),
+                              max_calls=max_calls if max_calls > 0 else None)
     siting_cache = SitingCache(s.state_dir / "siting", *( [s.siting_committed_dir] if s.siting_committed_dir else []))
     siting_jobs: dict[tuple[str, int, str], SitingResult] = {}
 

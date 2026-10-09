@@ -156,7 +156,7 @@ def test_ai_fallback_is_a_safe_mid_run_swap(fake):
     e = engine(demand=profile(level="high"))
     ai = _ai(fake)
     res = run_headless(e, "ai", 240, controller=ai, ai_interval_s=20, check_safety=True)
-    assert ai.state in ("ai_limit_reached", "ai_unavailable") and ai.effective_controller == "fixed"
+    assert ai.state in ("ai_limit_reached", "ai_unavailable") and ai.effective_controller == "max_pressure"
     assert res.limit_reached_at_t == 0.0
     assert all(color in {"green", "unsignalized"} for _, _, _, color in e.crossings)
     # the fixed fallback actually cycles all phases

@@ -14,6 +14,7 @@ import type { AreaResponse } from "./types/contract.gen";
 const SPLIT: Mode[] = ["fixed", "ai"];
 const SURGE_FACTOR = 2;
 const MAX_MULTIPLIER = 3;
+const HELP_KEY = "signalflow.howto";
 
 export default function App() {
   const [area, setArea] = useState<AreaResponse | null>(null);
@@ -30,6 +31,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isMock, setIsMock] = useState<boolean | null>(null);
+  const [showHelp, setShowHelp] = useState(() => {
+    try { return localStorage.getItem(HELP_KEY) !== "dismissed"; } catch { return true; }
+  });
+  const dismissHelp = () => {
+    setShowHelp(false);
+    try { localStorage.setItem(HELP_KEY, "dismissed"); } catch { /* storage unavailable: dismiss for this visit only */ }
+  };
   const sim = useSimulation(setError);
   const recommendation = useMemo(() => new Set(area?.recommended_ids ?? []), [area]);
   const toggle = useCallback((id: string) => setSelected(prev => {
@@ -92,6 +100,11 @@ export default function App() {
       <main className="simulation-space">
         <div className="workspace-heading"><div><span className="eyebrow">FIXED TIMERS VS AI · SAME SEED, SAME DEMAND</span><h1>Synthetic demo city</h1></div>
           <div className="clock"><span className={`status-dot ${sim.running ? "green" : ""}`} />{sim.running ? "LIVE" : sim.runs.length ? "STOPPED" : "READY"}<strong data-testid="shared-time">t = {commonTime.toFixed(1)}s</strong></div></div>
+        {showHelp && <div className="howto" role="note" data-testid="howto"><div><strong>How to use</strong><ol>
+          <li>Pick <b>Rush</b> as the demand level (left panel).</li>
+          <li>Press <b>▶ Start</b> to run Fixed timers vs AI side by side.</li>
+          <li>Press <b>⚡ Surge</b> and watch the metrics below each map.</li></ol></div>
+          <button aria-label="Dismiss how to use" onClick={dismissHelp}>×</button></div>}
         {error && <div className="error-banner" role="alert"><span>{error}</span><button aria-label="Dismiss error" onClick={() => setError(null)}>×</button></div>}
         {busy && <div className="operation-status" role="status"><span className="spinner" />{busy}…</div>}
         <div className="banners" aria-live="polite">
@@ -115,6 +128,7 @@ export default function App() {
             <MetricCards tick={sim.display[run.id] ?? null} />
           </section>)}
         </div>
+        <p className="metrics-note" data-testid="metrics-note">ⓘ Gains are modest on balanced demand: fixed timers only lose a lot when traffic is uneven or changing.</p>
         <div className="map-legend"><span><i className="legend-ring" />Signalised junction</span><span><i className="legend-recommended" />Recommended by simulation</span><span className="speed-key">Cars: stopped <i /> moving</span></div>
         {sim.runs.length > 0 && <div className="demo-summary"><span className="eyebrow">LIVE SIMULATED RESULT</span><div><strong>Fixed {fixedTick ? fixedTick.metrics.avg_wait_s.toFixed(1) : "—"}s</strong><span>→</span><strong>AI {aiTick ? aiTick.metrics.avg_wait_s.toFixed(1) : "—"}s</strong><span data-testid="gain">{gain === null ? "Collecting data…" : `${Math.abs(gain).toFixed(1)}% ${gain >= 0 ? "less" : "more"} waiting`}</span></div></div>}
         <Dashboard runs={sim.runs} points={sim.chart} />
